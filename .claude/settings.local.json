@@ -10,7 +10,8 @@
       "Bash(timeout 8 npm run dev:*)",
       "Bash(npm install:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(gh repo create:*)"
     ]
   }
 }
