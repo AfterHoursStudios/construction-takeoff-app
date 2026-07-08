@@ -10,11 +10,7 @@
     "build": "cd client && npm run build",
     "start": "cd server && npm start"
   },
-  "dependencies": {
-    "@supabase/supabase-js": "^2.45.0"
-  },
   "devDependencies": {
-    "@vercel/node": "^3.2.0",
     "concurrently": "^8.2.2"
   }
 }
