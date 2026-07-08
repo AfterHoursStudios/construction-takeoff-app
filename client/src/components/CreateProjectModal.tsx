@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Upload, FileText } from 'lucide-react';
 import { useProjectStore } from '../stores/projectStore';
+import { uploadFile } from '../lib/supabase';
 import type { Project } from '../types';
 
 interface CreateProjectModalProps {
@@ -82,20 +83,7 @@ export default function CreateProjectModal({ onClose }: CreateProjectModalProps)
 
       // Upload file if selected
       if (selectedFile) {
-        const formDataUpload = new FormData();
-        formDataUpload.append('file', selectedFile);
-        formDataUpload.append('projectId', projectId);
-
-        const response = await fetch('/api/upload', {
-          method: 'POST',
-          body: formDataUpload,
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to upload file');
-        }
-
-        const uploadResult = await response.json();
+        const uploadResult = await uploadFile(selectedFile);
         newProject.planFileId = uploadResult.fileId;
         newProject.planFileName = selectedFile.name;
       }

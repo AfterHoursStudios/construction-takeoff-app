@@ -20,6 +20,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { useProjectStore } from '../stores/projectStore';
+import { uploadFile, supabase, BUCKET_NAME } from '../lib/supabase';
 import headerLogo from '../assets/headerlogo.png';
 import PdfViewer from '../components/PdfViewer';
 import MeasurementCanvas from '../components/MeasurementCanvas';
@@ -87,7 +88,10 @@ export default function ProjectView() {
       if (project) {
         setCurrentProject(project);
         if (project.planFileId) {
-          setPdfUrl(`/api/files/${project.planFileId}`);
+          const { data } = supabase.storage
+            .from(BUCKET_NAME)
+            .getPublicUrl(`${project.planFileId}.pdf`);
+          setPdfUrl(data.publicUrl);
         }
       } else {
         navigate('/dashboard');
@@ -107,25 +111,12 @@ export default function ProjectView() {
 
     setIsUploadingPdf(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('projectId', currentProject.id);
-
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Upload failed');
-      }
-
-      const result = await response.json();
+      const result = await uploadFile(file);
       updateProject(currentProject.id, {
         planFileId: result.fileId,
         planFileName: file.name,
       });
-      setPdfUrl(`/api/files/${result.fileId}`);
+      setPdfUrl(result.fileUrl);
     } catch (err) {
       console.error('Upload error:', err);
       alert('Failed to upload PDF. Please try again.');
