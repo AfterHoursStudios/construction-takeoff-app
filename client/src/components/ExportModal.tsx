@@ -4,6 +4,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as pdfjsLib from 'pdfjs-dist';
 import { useProjectStore } from '../stores/projectStore';
+import { supabase, BUCKET_NAME } from '../lib/supabase';
 import { formatMeasurement } from '../utils/format';
 import type { Measurement, MeasurementSubtraction, PlanNote, QuickMeasurement, Point, PageScale } from '../types';
 import pdfLogo from '../assets/pdflogo.png';
@@ -908,7 +909,10 @@ export default function ExportModal({ onClose }: ExportModalProps) {
           ])].sort((a, b) => a - b);
 
           if (pagesWithContent.length > 0) {
-            const pdfUrl = `/api/files/${currentProject.planFileId}`;
+            const { data: urlData } = supabase.storage
+              .from(BUCKET_NAME)
+              .getPublicUrl(`${currentProject.planFileId}.pdf`);
+            const pdfUrl = urlData.publicUrl;
             const pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
 
             for (const pageNum of pagesWithContent) {
