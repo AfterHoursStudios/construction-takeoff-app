@@ -61,6 +61,10 @@ export default function MeasurementCanvas({
     subtractingFromSegment,
     setSubtractingFromSegment,
     addSubtraction,
+    rectangleStartPoint,
+    setRectangleStartPoint,
+    quickDrawMode,
+    setContinuingMeasurementName,
   } = useProjectStore();
 
   const [mousePos, setMousePos] = useState<Point | null>(null);
@@ -315,6 +319,40 @@ export default function MeasurementCanvas({
 
     // Handle subtract mode - takes priority over select tool
     if (isSubtractMode && subtractingFromSegment) {
+      // Line mode for subtraction - two clicks
+      if (quickDrawMode === 'line') {
+        if (!isDrawing) {
+          setIsDrawing(true);
+          clearCurrentPoints();
+          addCurrentPoint(point);
+        } else {
+          // Second click - complete the subtraction line
+          const startPoint = currentPoints[0];
+          const subtractionValue = calculateDistance(startPoint, point);
+
+          const newSubtraction: MeasurementSubtraction = {
+            id: crypto.randomUUID(),
+            segmentIndex: subtractingFromSegment.segmentIndex,
+            points: [startPoint, point],
+            value: subtractionValue,
+            createdAt: new Date().toISOString(),
+          };
+
+          addSubtraction(subtractingFromSegment.measurementId, newSubtraction);
+          setIsDrawing(false);
+          clearCurrentPoints();
+        }
+        return;
+      }
+
+      // Rectangle mode for subtraction - click and drag
+      if (quickDrawMode === 'rectangle') {
+        setRectangleStartPoint(point);
+        setIsDrawing(true);
+        return;
+      }
+
+      // Default freeform subtraction
       if (!isDrawing) {
         setIsDrawing(true);
         clearCurrentPoints();
@@ -409,8 +447,42 @@ export default function MeasurementCanvas({
       return;
     }
 
-    // Handle linear and area tools - start drawing
+    // Handle linear and area tools - check quickDrawMode for special behaviors
     if (activeTool === 'linear' || activeTool === 'area') {
+      // Quick draw mode: 'line' - two-click straight line
+      if (quickDrawMode === 'line') {
+        if (!isDrawing) {
+          // First click - start drawing
+          setIsDrawing(true);
+          clearCurrentPoints();
+          addCurrentPoint(point);
+        } else {
+          // Second click - complete the line
+          const startPoint = currentPoints[0];
+          const distance = calculateDistance(startPoint, point);
+          const pendingMeasurement: PendingMeasurement = {
+            measurementType: activeTool === 'area' ? 'area' : 'linear',
+            points: [startPoint, point],
+            value: distance,
+            unit: activeTool === 'area' ? 'SF' : 'LF',
+            color: drawingConfig.color,
+            lineWeight: drawingConfig.lineWeight,
+          };
+          setPendingMeasurement(pendingMeasurement);
+          setIsDrawing(false);
+          clearCurrentPoints();
+        }
+        return;
+      }
+
+      // Quick draw mode: 'rectangle' - click and drag
+      if (quickDrawMode === 'rectangle') {
+        setRectangleStartPoint(point);
+        setIsDrawing(true);
+        return;
+      }
+
+      // Default mode - multi-point drawing
       if (!isDrawing) {
         setIsDrawing(true);
         clearCurrentPoints();
@@ -447,6 +519,128 @@ export default function MeasurementCanvas({
       const lastPoint = currentPoints.length > 0 ? currentPoints[currentPoints.length - 1] : null;
       const snappedPos = isDrawing ? snapPoint(pos, lastPoint) : pos;
       setMousePos({ x: snappedPos.x, y: snappedPos.y });
+    }
+  };
+
+  const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (!currentProject) return;
+
+    // Handle rectangle subtraction mode
+    if (quickDrawMode === 'rectangle' && rectangleStartPoint && isDrawing && isSubtractMode && subtractingFromSegment) {
+      const stage = e.target.getStage();
+      if (!stage) return;
+
+      const pos = stage.getPointerPosition();
+      if (!pos) return;
+
+      const endPoint: Point = { x: pos.x, y: pos.y };
+
+      // Calculate the 4 corner points of the rectangle
+      const corners: Point[] = [
+        { x: rectangleStartPoint.x, y: rectangleStartPoint.y },
+        { x: endPoint.x, y: rectangleStartPoint.y },
+        { x: endPoint.x, y: endPoint.y },
+        { x: rectangleStartPoint.x, y: endPoint.y },
+      ];
+
+      // Get the target measurement to determine subtraction type
+      const targetMeasurement = measurements.find((m) => m.id === subtractingFromSegment.measurementId);
+
+      // Calculate subtraction value based on parent measurement type
+      const width = Math.abs(endPoint.x - rectangleStartPoint.x);
+      const height = Math.abs(endPoint.y - rectangleStartPoint.y);
+      let subtractionValue: number;
+
+      if (targetMeasurement?.measurementType === 'area') {
+        // Area subtraction
+        subtractionValue = width * height;
+        if (pageScale) {
+          subtractionValue = subtractionValue / Math.pow(pageScale.pixelsPerUnit, 2);
+        }
+      } else {
+        // Linear subtraction (perimeter)
+        subtractionValue = 2 * (width + height);
+        if (pageScale) {
+          subtractionValue = subtractionValue / pageScale.pixelsPerUnit;
+        }
+      }
+
+      if (subtractionValue > 0.01) {
+        const newSubtraction: MeasurementSubtraction = {
+          id: crypto.randomUUID(),
+          segmentIndex: subtractingFromSegment.segmentIndex,
+          points: corners,
+          value: subtractionValue,
+          createdAt: new Date().toISOString(),
+        };
+
+        addSubtraction(subtractingFromSegment.measurementId, newSubtraction);
+      }
+
+      setRectangleStartPoint(null);
+      setIsDrawing(false);
+      return;
+    }
+
+    // Handle rectangle mode - complete the rectangle on mouse up
+    if (quickDrawMode === 'rectangle' && rectangleStartPoint && isDrawing && (activeTool === 'linear' || activeTool === 'area')) {
+      const stage = e.target.getStage();
+      if (!stage) return;
+
+      const pos = stage.getPointerPosition();
+      if (!pos) return;
+
+      const endPoint: Point = { x: pos.x, y: pos.y };
+
+      // Calculate the 4 corner points of the rectangle
+      const corners: Point[] = [
+        { x: rectangleStartPoint.x, y: rectangleStartPoint.y }, // top-left
+        { x: endPoint.x, y: rectangleStartPoint.y }, // top-right
+        { x: endPoint.x, y: endPoint.y }, // bottom-right
+        { x: rectangleStartPoint.x, y: endPoint.y }, // bottom-left
+      ];
+
+      // Calculate dimensions
+      const width = Math.abs(endPoint.x - rectangleStartPoint.x);
+      const height = Math.abs(endPoint.y - rectangleStartPoint.y);
+
+      // For linear tool: calculate perimeter; for area tool: calculate area
+      let value: number;
+      let unit: 'LF' | 'SF';
+
+      if (activeTool === 'linear') {
+        // Perimeter = 2 * (width + height)
+        let perimeter = 2 * (width + height);
+        if (pageScale) {
+          perimeter = perimeter / pageScale.pixelsPerUnit;
+        }
+        value = perimeter;
+        unit = 'LF';
+      } else {
+        // Area = width * height
+        let area = width * height;
+        if (pageScale) {
+          area = area / Math.pow(pageScale.pixelsPerUnit, 2);
+        }
+        value = area;
+        unit = 'SF';
+      }
+
+      // Only create measurement if value is meaningful
+      if (value > 0.01) {
+        const pendingMeasurement: PendingMeasurement = {
+          measurementType: activeTool === 'linear' ? 'linear' : 'area',
+          points: corners,
+          value,
+          unit,
+          color: drawingConfig.color,
+          lineWeight: drawingConfig.lineWeight,
+        };
+        setPendingMeasurement(pendingMeasurement);
+      }
+
+      setRectangleStartPoint(null);
+      setIsDrawing(false);
     }
   };
 
@@ -554,11 +748,13 @@ export default function MeasurementCanvas({
       if (e.key === 'Escape') {
         setIsDrawing(false);
         clearCurrentPoints();
+        setRectangleStartPoint(null);
         setSelectedMeasurement(null);
         setSelectedNote(null);
         setSelectedQuickMeasurement(null);
         setSelectedReferenceLine(null);
         setSubtractingFromSegment(null);
+        setContinuingMeasurementName(null);
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedMeasurementId) {
@@ -584,7 +780,7 @@ export default function MeasurementCanvas({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedMeasurementId, selectedSegmentIndex, selectedNoteId, selectedQuickMeasurementId, selectedReferenceLineId, deleteMeasurement, deletePlanNote, deleteQuickMeasurement, deleteReferenceLine, clearCurrentPoints, setSelectedMeasurement, setSelectedNote, setSelectedQuickMeasurement, setSelectedReferenceLine, setSubtractingFromSegment, setIsDrawing, measurements, updateMeasurement, setSelectedSegment, pageScale]);
+  }, [selectedMeasurementId, selectedSegmentIndex, selectedNoteId, selectedQuickMeasurementId, selectedReferenceLineId, deleteMeasurement, deletePlanNote, deleteQuickMeasurement, deleteReferenceLine, clearCurrentPoints, setSelectedMeasurement, setSelectedNote, setSelectedQuickMeasurement, setSelectedReferenceLine, setSubtractingFromSegment, setIsDrawing, setRectangleStartPoint, setContinuingMeasurementName, measurements, updateMeasurement, setSelectedSegment, pageScale]);
 
   const getCursor = () => {
     if (isSubtractMode) {
@@ -617,6 +813,7 @@ export default function MeasurementCanvas({
         height={height}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
         onDblClick={handleDoubleClick}
       >
         <Layer>
@@ -691,6 +888,17 @@ export default function MeasurementCanvas({
               activeTool={isSubtractMode ? 'subtract' : activeTool}
               color={isSubtractMode ? '#ef4444' : (activeTool === 'measure' ? '#f59e0b' : drawingConfig.color)}
               pageScale={pageScale}
+            />
+          )}
+
+          {/* Render rectangle preview */}
+          {isDrawing && quickDrawMode === 'rectangle' && rectangleStartPoint && mousePos && (activeTool === 'linear' || activeTool === 'area' || isSubtractMode) && (
+            <RectanglePreview
+              startPoint={rectangleStartPoint}
+              mousePos={mousePos}
+              color={isSubtractMode ? '#ef4444' : drawingConfig.color}
+              pageScale={pageScale}
+              showPerimeter={activeTool === 'linear' && !isSubtractMode}
             />
           )}
 
@@ -1755,6 +1963,178 @@ function ReferenceLineDisplay({ referenceLine, isSelected, onPointDrag }: Refere
           />
         </Group>
       )}
+    </Group>
+  );
+}
+
+interface RectanglePreviewProps {
+  startPoint: Point;
+  mousePos: Point;
+  color: string;
+  pageScale: PageScale | null;
+  showPerimeter?: boolean; // Show perimeter instead of area (for linear tool)
+}
+
+function RectanglePreview({ startPoint, mousePos, color, pageScale, showPerimeter = false }: RectanglePreviewProps) {
+  // Calculate rectangle dimensions
+  const x = Math.min(startPoint.x, mousePos.x);
+  const y = Math.min(startPoint.y, mousePos.y);
+  const width = Math.abs(mousePos.x - startPoint.x);
+  const height = Math.abs(mousePos.y - startPoint.y);
+
+  // Calculate area
+  let area = width * height;
+  if (pageScale) {
+    area = area / Math.pow(pageScale.pixelsPerUnit, 2);
+  }
+
+  // Calculate perimeter
+  let perimeter = 2 * (width + height);
+  if (pageScale) {
+    perimeter = perimeter / pageScale.pixelsPerUnit;
+  }
+
+  // Format area display
+  const formatArea = (val: number) => {
+    if (pageScale) {
+      return formatMeasurement(val, 'SF');
+    }
+    return `${val.toFixed(0)}px²`;
+  };
+
+  // Format perimeter display
+  const formatPerimeter = (val: number) => {
+    if (pageScale) {
+      return formatMeasurement(val, 'LF');
+    }
+    return `${val.toFixed(0)}px`;
+  };
+
+  // Calculate dimensions for display
+  let displayWidth = width;
+  let displayHeight = height;
+  if (pageScale) {
+    displayWidth = width / pageScale.pixelsPerUnit;
+    displayHeight = height / pageScale.pixelsPerUnit;
+  }
+
+  const formatDimension = (val: number) => {
+    if (pageScale) {
+      return formatMeasurement(val, 'LF');
+    }
+    return `${val.toFixed(0)}px`;
+  };
+
+  // Center of rectangle for label
+  const centerX = x + width / 2;
+  const centerY = y + height / 2;
+
+  return (
+    <Group>
+      {/* Rectangle outline with fill */}
+      <Rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        stroke={color}
+        strokeWidth={2}
+        dash={[5, 5]}
+        fill={color}
+        opacity={0.2}
+      />
+      <Rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        stroke={color}
+        strokeWidth={2}
+        dash={[5, 5]}
+      />
+
+      {/* Corner points */}
+      <Circle x={startPoint.x} y={startPoint.y} radius={5} fill={color} stroke="#fff" strokeWidth={1} />
+      <Circle x={mousePos.x} y={startPoint.y} radius={5} fill={color} stroke="#fff" strokeWidth={1} />
+      <Circle x={mousePos.x} y={mousePos.y} radius={5} fill={color} stroke="#fff" strokeWidth={1} />
+      <Circle x={startPoint.x} y={mousePos.y} radius={5} fill={color} stroke="#fff" strokeWidth={1} />
+
+      {/* Dimension labels on edges */}
+      {width > 50 && (
+        <Group x={centerX} y={y - 15} listening={false}>
+          <Rect
+            x={-25}
+            y={-7}
+            width={50}
+            height={14}
+            fill="rgba(255, 255, 255, 0.9)"
+            cornerRadius={2}
+          />
+          <Text
+            x={-23}
+            y={-5}
+            text={formatDimension(displayWidth)}
+            fontSize={9}
+            fill={color}
+            fontStyle="bold"
+          />
+        </Group>
+      )}
+
+      {height > 50 && (
+        <Group x={x - 15} y={centerY} listening={false}>
+          <Rect
+            x={-25}
+            y={-7}
+            width={50}
+            height={14}
+            fill="rgba(255, 255, 255, 0.9)"
+            cornerRadius={2}
+          />
+          <Text
+            x={-23}
+            y={-5}
+            text={formatDimension(displayHeight)}
+            fontSize={9}
+            fill={color}
+            fontStyle="bold"
+          />
+        </Group>
+      )}
+
+      {/* Measurement label near cursor */}
+      <Group x={mousePos.x + 15} y={mousePos.y - 25} listening={false}>
+        <Rect
+          x={0}
+          y={0}
+          width={95}
+          height={38}
+          fill="rgba(0, 0, 0, 0.8)"
+          cornerRadius={4}
+        />
+        <Text
+          x={5}
+          y={4}
+          text={`W: ${formatDimension(displayWidth)}`}
+          fontSize={10}
+          fill="#fff"
+        />
+        <Text
+          x={5}
+          y={14}
+          text={`H: ${formatDimension(displayHeight)}`}
+          fontSize={10}
+          fill="#fff"
+        />
+        <Text
+          x={5}
+          y={24}
+          text={showPerimeter ? `Perim: ${formatPerimeter(perimeter)}` : `Area: ${formatArea(area)}`}
+          fontSize={10}
+          fill="#4ade80"
+          fontStyle="bold"
+        />
+      </Group>
     </Group>
   );
 }
