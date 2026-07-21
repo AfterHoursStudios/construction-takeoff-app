@@ -20,6 +20,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { useProjectStore } from '../stores/projectStore';
+import { useAuthStore } from '../stores/authStore';
 import { uploadFile, supabase, BUCKET_NAME } from '../lib/supabase';
 import headerLogo from '../assets/headerlogo.png';
 import PdfViewer from '../components/PdfViewer';
@@ -65,7 +66,12 @@ export default function ProjectView() {
     useToolPreset,
     setActiveToolPreset,
     setContinuingMeasurementName,
+    quickDrawMode,
+    toggleQuickDrawMode,
+    isDataLoaded,
+    loadUserData,
   } = useProjectStore();
+  const { user } = useAuthStore();
 
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -81,9 +87,16 @@ export default function ProjectView() {
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [spacePressed, setSpacePressed] = useState(false);
 
+  // Load user data if not already loaded (direct navigation to project)
+  useEffect(() => {
+    if (user && !isDataLoaded) {
+      loadUserData(user.id);
+    }
+  }, [user, isDataLoaded, loadUserData]);
+
   // Load project on mount
   useEffect(() => {
-    if (projectId) {
+    if (projectId && isDataLoaded) {
       const project = projects.find((p) => p.id === projectId);
       if (project) {
         setCurrentProject(project);
@@ -97,7 +110,7 @@ export default function ProjectView() {
         navigate('/dashboard');
       }
     }
-  }, [projectId, projects, setCurrentProject, navigate]);
+  }, [projectId, projects, setCurrentProject, navigate, isDataLoaded]);
 
   // Handle PDF file upload
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -152,7 +165,7 @@ export default function ProjectView() {
     return () => container.removeEventListener('wheel', handleWheel);
   }, [viewportScale, setViewportScale]);
 
-  // Space key for temporary pan mode
+  // Space key for temporary pan mode and tool hotkeys
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -161,9 +174,29 @@ export default function ProjectView() {
                           target.tagName === 'SELECT' ||
                           target.isContentEditable;
 
-      if (e.code === 'Space' && !e.repeat && !isFormField) {
+      if (isFormField) return;
+
+      if (e.code === 'Space' && !e.repeat) {
         e.preventDefault();
         setSpacePressed(true);
+      }
+
+      // Hotkey: D - Toggle line mode (two-click straight line)
+      if (e.key === 'd' || e.key === 'D') {
+        e.preventDefault();
+        toggleQuickDrawMode('line');
+      }
+
+      // Hotkey: S - Toggle rectangle/square mode
+      if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        toggleQuickDrawMode('rectangle');
+      }
+
+      // Hotkey: A - Toggle angle snap
+      if (e.key === 'a' || e.key === 'A') {
+        e.preventDefault();
+        setSnapToAngle(!snapToAngle);
       }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -178,7 +211,7 @@ export default function ProjectView() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, []);
+  }, [snapToAngle, setSnapToAngle, toggleQuickDrawMode]);
 
   // Panning handlers
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -243,6 +276,22 @@ export default function ProjectView() {
       <line x1="7" y1="10" x2="7" y2="14" />
       <line x1="12" y1="9" x2="12" y2="15" />
       <line x1="17" y1="10" x2="17" y2="14" />
+    </svg>
+  );
+
+  // Two-click line mode icon (line with two dots)
+  const LineModeIcon = () => (
+    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <circle cx="4" cy="12" r="2" fill="currentColor" />
+      <circle cx="20" cy="12" r="2" fill="currentColor" />
+    </svg>
+  );
+
+  // Rectangle mode icon (outlined rectangle)
+  const RectangleModeIcon = () => (
+    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="5" width="18" height="14" rx="1" />
     </svg>
   );
 
@@ -329,10 +378,28 @@ export default function ProjectView() {
             </button>
           ))}
           <div className="w-px h-6 bg-slate-300 mx-2" />
+          {/* Quick Draw Modes */}
+          <button
+            onClick={() => toggleQuickDrawMode('line')}
+            className={`tool-btn flex flex-col items-center gap-0.5 py-1 ${quickDrawMode === 'line' ? 'active' : ''}`}
+            title="Line Mode [D] - Two-click straight line"
+          >
+            <LineModeIcon />
+            <span className="text-[9px] font-medium opacity-60">D</span>
+          </button>
+          <button
+            onClick={() => toggleQuickDrawMode('rectangle')}
+            className={`tool-btn flex flex-col items-center gap-0.5 py-1 ${quickDrawMode === 'rectangle' ? 'active' : ''}`}
+            title="Square Mode [S] - Click and drag"
+          >
+            <RectangleModeIcon />
+            <span className="text-[9px] font-medium opacity-60">S</span>
+          </button>
+          <div className="w-px h-6 bg-slate-300 mx-2" />
           <button
             onClick={() => setSnapToAngle(!snapToAngle)}
-            className={`tool-btn ${snapToAngle ? 'active' : ''}`}
-            title="Snap to 45°/90° angles"
+            className={`tool-btn flex flex-col items-center gap-0.5 py-1 ${snapToAngle ? 'active' : ''}`}
+            title="Snap to 45°/90° angles [A]"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M4 20h16" />
@@ -340,6 +407,7 @@ export default function ProjectView() {
               <path d="M4 12l8-8" />
               <circle cx="12" cy="4" r="2" fill="currentColor" />
             </svg>
+            <span className="text-[9px] font-medium opacity-60">A</span>
           </button>
           <div className="w-px h-6 bg-slate-300 mx-2" />
           {/* Tool Presets */}

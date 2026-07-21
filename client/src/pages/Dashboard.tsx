@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus,
@@ -8,17 +8,33 @@ import {
   User,
   Trash2,
   FileText,
+  LogOut,
 } from 'lucide-react';
 import { useProjectStore } from '../stores/projectStore';
+import { useAuthStore } from '../stores/authStore';
 import headerLogo from '../assets/headerlogo.png';
 import type { Project } from '../types';
 import CreateProjectModal from '../components/CreateProjectModal';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { projects, deleteProject } = useProjectStore();
+  const { projects, deleteProject, loadUserData, isDataLoaded, isSyncing, clearUserData } = useProjectStore();
+  const { user, signOut } = useAuthStore();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Load user data when component mounts
+  useEffect(() => {
+    if (user && !isDataLoaded) {
+      loadUserData(user.id);
+    }
+  }, [user, isDataLoaded, loadUserData]);
+
+  const handleSignOut = async () => {
+    await signOut();
+    clearUserData();
+    navigate('/');
+  };
 
   const filteredProjects = projects.filter(
     (project) =>
@@ -42,6 +58,18 @@ export default function Dashboard() {
     });
   };
 
+  // Show loading state while data is loading
+  if (isSyncing && !isDataLoaded) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading your projects...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-100">
       {/* Header */}
@@ -54,13 +82,25 @@ export default function Dashboard() {
             >
               <img src={headerLogo} alt="TakeoffPro" className="h-20 w-auto" />
             </button>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="btn btn-primary flex items-center gap-2"
-            >
-              <Plus className="w-5 h-5" />
-              New Project
-            </button>
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-slate-600">
+                {user?.email}
+              </div>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="btn btn-primary flex items-center gap-2"
+              >
+                <Plus className="w-5 h-5" />
+                New Project
+              </button>
+              <button
+                onClick={handleSignOut}
+                className="btn btn-secondary flex items-center gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
       </header>

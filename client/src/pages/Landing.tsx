@@ -70,13 +70,13 @@ export default function Landing() {
             </div>
             <div className="flex items-center gap-4">
               <button
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate('/login')}
                 className="text-slate-600 hover:text-slate-800 font-medium transition-colors"
               >
                 Sign In
               </button>
               <button
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate('/signup')}
                 className="btn btn-primary"
               >
                 Get Started Free
@@ -117,7 +117,7 @@ export default function Landing() {
 
               <div className="flex flex-col sm:flex-row gap-4">
                 <button
-                  onClick={() => navigate('/dashboard')}
+                  onClick={() => navigate('/signup')}
                   className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-primary-600 text-white rounded-xl font-semibold text-lg hover:bg-primary-700 transition-all shadow-lg shadow-primary-600/25 hover:shadow-xl hover:shadow-primary-600/30"
                 >
                   Try it FREE
@@ -302,7 +302,7 @@ export default function Landing() {
             Join contractors who are saving time and improving accuracy with TakeoffPro.
           </p>
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/signup')}
             className="inline-flex items-center justify-center gap-2 px-10 py-5 bg-white text-primary-600 rounded-xl font-semibold text-lg hover:bg-primary-50 transition-all shadow-lg"
           >
             Get Started Free

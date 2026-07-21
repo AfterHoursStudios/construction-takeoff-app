@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Ruler, MousePointer, Edit3 } from 'lucide-react';
 import { useProjectStore } from '../stores/projectStore';
+import { useAuthStore } from '../stores/authStore';
 import type { PageScale } from '../types';
 
 interface ScaleCalibrationModalProps {
@@ -41,6 +42,7 @@ export default function ScaleCalibrationModal({
     setPageScale,
     setActiveTool,
   } = useProjectStore();
+  const { user } = useAuthStore();
 
   const [mode, setMode] = useState<'calibrate' | 'manual'>('calibrate');
   const [distance, setDistance] = useState('');
@@ -104,7 +106,7 @@ export default function ScaleCalibrationModal({
       },
     };
 
-    setPageScale(currentProject.id, currentPage, pageScale);
+    setPageScale(currentProject.id, currentPage, pageScale, user?.id);
     clearCalibrationPoints();
     setActiveTool('select');
     onClose();
@@ -157,7 +159,7 @@ export default function ScaleCalibrationModal({
       calibrationPoints: null,
     };
 
-    setPageScale(currentProject.id, currentPage, pageScale);
+    setPageScale(currentProject.id, currentPage, pageScale, user?.id);
     clearCalibrationPoints();
     setActiveTool('select');
     onClose();

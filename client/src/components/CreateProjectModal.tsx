@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Upload, FileText } from 'lucide-react';
 import { useProjectStore } from '../stores/projectStore';
+import { useAuthStore } from '../stores/authStore';
 import { uploadFile } from '../lib/supabase';
 import type { Project } from '../types';
 
@@ -12,6 +13,7 @@ interface CreateProjectModalProps {
 export default function CreateProjectModal({ onClose }: CreateProjectModalProps) {
   const navigate = useNavigate();
   const { addProject } = useProjectStore();
+  const { user } = useAuthStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
@@ -88,7 +90,7 @@ export default function CreateProjectModal({ onClose }: CreateProjectModalProps)
         newProject.planFileName = selectedFile.name;
       }
 
-      addProject(newProject);
+      addProject(newProject, user?.id);
       navigate(`/project/${projectId}`);
     } catch (err) {
       console.error('Error creating project:', err);

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Plus, Trash2, Edit2, Ruler, Square, Hash, Package, Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { useProjectStore } from '../stores/projectStore';
+import { useAuthStore } from '../stores/authStore';
 import type { ToolPreset, SavedMaterial, MeasurementType } from '../types';
 
 interface ToolPresetsModalProps {
@@ -40,6 +41,7 @@ export default function ToolPresetsModal({ onClose }: ToolPresetsModalProps) {
     deleteToolPreset,
     addSavedMaterial,
   } = useProjectStore();
+  const { user } = useAuthStore();
 
   const [editingPreset, setEditingPreset] = useState<ToolPreset | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -109,7 +111,7 @@ export default function ToolPresetsModal({ onClose }: ToolPresetsModalProps) {
 
     // Also save to global saved materials for reuse
     if (!savedMaterials.some(m => m.name.toLowerCase() === newMaterial.name.toLowerCase())) {
-      addSavedMaterial(newMaterial);
+      addSavedMaterial(newMaterial, user?.id);
     }
 
     resetMaterialForm();
@@ -146,7 +148,7 @@ export default function ToolPresetsModal({ onClose }: ToolPresetsModalProps) {
         materials: formMaterials,
         createdAt: new Date().toISOString(),
       };
-      addToolPreset(newPreset);
+      addToolPreset(newPreset, user?.id);
     }
 
     resetForm();

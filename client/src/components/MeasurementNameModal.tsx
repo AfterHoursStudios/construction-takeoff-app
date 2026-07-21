@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, Ruler, Square, Hash } from 'lucide-react';
 import { useProjectStore } from '../stores/projectStore';
+import { useAuthStore } from '../stores/authStore';
 import { formatMeasurement } from '../utils/format';
 import type { Measurement, MeasurementMaterial } from '../types';
 
@@ -21,6 +22,7 @@ export default function MeasurementNameModal({ onClose }: MeasurementNameModalPr
     setContinuingMeasurementName,
     activeToolPreset,
   } = useProjectStore();
+  const { user } = useAuthStore();
 
   const [name, setName] = useState(continuingMeasurementName || '');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -150,11 +152,13 @@ export default function MeasurementNameModal({ onClose }: MeasurementNameModalPr
         isVisible: true,
         createdAt: new Date().toISOString(),
       };
-      addMeasurement(newMeasurement);
+      addMeasurement(newMeasurement, user?.id);
     }
 
+    // Keep the measurement name active so user can continue adding sections
+    // User presses ESC to stop continuing
+    setContinuingMeasurementName(trimmedName);
     setPendingMeasurement(null);
-    setContinuingMeasurementName(null);
     onClose();
   };
 

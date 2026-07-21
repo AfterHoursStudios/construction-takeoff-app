@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { X, Plus, Trash2, Package } from 'lucide-react';
 import { useProjectStore } from '../stores/projectStore';
+import { useAuthStore } from '../stores/authStore';
 import { formatMeasurement } from '../utils/format';
 import type { Measurement, MeasurementMaterial, SavedMaterial } from '../types';
 
@@ -56,6 +57,7 @@ export default function MaterialsModal({ measurement, onClose }: MaterialsModalP
     updateMeasurementMaterial,
     removeMaterialFromMeasurement,
   } = useProjectStore();
+  const { user } = useAuthStore();
 
   const [isAdding, setIsAdding] = useState(false);
   const [newMaterialName, setNewMaterialName] = useState('');
@@ -184,7 +186,7 @@ export default function MaterialsModal({ measurement, onClose }: MaterialsModalP
         plateLength: newMaterialType === 'plate' ? newPlateLength : undefined,
         plateCount: newMaterialType === 'plate' ? newPlateCount : undefined,
       };
-      addSavedMaterial(template);
+      addSavedMaterial(template, user?.id);
     }
 
     // Reset form
