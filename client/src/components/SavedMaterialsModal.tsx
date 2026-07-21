@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Plus, Trash2, Edit2, Package, Check } from 'lucide-react';
+import { X, Plus, Trash2, Edit2, Package } from 'lucide-react';
 import { useProjectStore } from '../stores/projectStore';
 import { useAuthStore } from '../stores/authStore';
 import type { SavedMaterial } from '../types';
