@@ -33,6 +33,7 @@ import ExportModal from '../components/ExportModal';
 import NoteInputModal from '../components/NoteInputModal';
 import ToolPresetsModal from '../components/ToolPresetsModal';
 import SavedMaterialsModal from '../components/SavedMaterialsModal';
+import EditProjectModal from '../components/EditProjectModal';
 import type { ActiveTool } from '../types';
 
 export default function ProjectView() {
@@ -80,6 +81,7 @@ export default function ProjectView() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showToolPresetsModal, setShowToolPresetsModal] = useState(false);
   const [showSavedMaterialsModal, setShowSavedMaterialsModal] = useState(false);
+  const [showEditProjectModal, setShowEditProjectModal] = useState(false);
   const [showPresetPicker, setShowPresetPicker] = useState(false);
   const [pdfDimensions, setPdfDimensions] = useState({ width: 0, height: 0 });
   const [isUploadingPdf, setIsUploadingPdf] = useState(false);
@@ -329,10 +331,14 @@ export default function ProjectView() {
             <ArrowLeft className="w-5 h-5 text-slate-600" />
           </button>
           <img src={headerLogo} alt="TakeoffPro" className="h-16 w-auto" />
-          <div className="border-l border-slate-200 pl-4">
+          <button
+            onClick={() => setShowEditProjectModal(true)}
+            className="border-l border-slate-200 pl-4 text-left hover:bg-slate-50 rounded-r-lg pr-3 py-1 transition-colors"
+            title="Click to edit project info"
+          >
             <h1 className="font-semibold text-slate-800">{currentProject.name}</h1>
-            <p className="text-sm text-slate-500">{currentProject.clientName}</p>
-          </div>
+            <p className="text-sm text-slate-500">{currentProject.clientName || 'Click to add client'}</p>
+          </button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -719,6 +725,10 @@ export default function ProjectView() {
 
       {showSavedMaterialsModal && (
         <SavedMaterialsModal onClose={() => setShowSavedMaterialsModal(false)} />
+      )}
+
+      {showEditProjectModal && currentProject && (
+        <EditProjectModal project={currentProject} onClose={() => setShowEditProjectModal(false)} />
       )}
 
       {pendingNotePosition && (
