@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { Mail, Lock, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, AlertCircle, ArrowLeft, CheckCircle } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
+import { supabase } from '../lib/supabase';
 import headerLogo from '../assets/headerlogo.png';
 
 export default function Login() {
@@ -13,9 +14,30 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
 
   // Get the redirect path from location state, default to dashboard
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      setError('Please enter your email address');
+      return;
+    }
+    setIsLoading(true);
+    setError('');
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/login`,
+    });
+    setIsLoading(false);
+    if (error) {
+      setError(error.message);
+    } else {
+      setResetEmailSent(true);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,6 +131,13 @@ export default function Login() {
                     minLength={6}
                   />
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-sm text-primary-600 hover:text-primary-700 mt-2"
+                >
+                  Forgot password?
+                </button>
               </div>
 
               <button
@@ -136,6 +165,42 @@ export default function Login() {
               </p>
             </div>
           </div>
+
+          {/* Forgot Password Modal */}
+          {showForgotPassword && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowForgotPassword(false)}>
+              <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                {resetEmailSent ? (
+                  <div className="text-center">
+                    <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-slate-800 mb-2">Check Your Email</h3>
+                    <p className="text-slate-600 mb-4">We've sent a password reset link to {email}</p>
+                    <button onClick={() => { setShowForgotPassword(false); setResetEmailSent(false); }} className="btn btn-primary w-full">Done</button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleForgotPassword}>
+                    <h3 className="text-xl font-semibold text-slate-800 mb-2">Reset Password</h3>
+                    <p className="text-slate-600 mb-4">Enter your email and we'll send you a reset link.</p>
+                    {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="input-field mb-4"
+                      placeholder="you@example.com"
+                      required
+                    />
+                    <div className="flex gap-3">
+                      <button type="button" onClick={() => setShowForgotPassword(false)} className="btn btn-secondary flex-1">Cancel</button>
+                      <button type="submit" disabled={isLoading} className="btn btn-primary flex-1">
+                        {isLoading ? 'Sending...' : 'Send Reset Link'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>
