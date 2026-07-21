@@ -558,7 +558,8 @@ export default function ExportModal({ onClose }: ExportModalProps) {
       m.materials.forEach((mat) => {
         const key = mat.name;
         const existing = totals.get(key);
-        const adjustedQuantity = mat.quantity ? mat.quantity * netRatio : 0;
+        const wasteFactor = 1 + (mat.wasteFactor || 0) / 100;
+        const adjustedQuantity = mat.quantity ? Math.ceil(mat.quantity * netRatio * wasteFactor) : 0;
 
         if (mat.isStud && mat.quantity) {
           if (existing) {
