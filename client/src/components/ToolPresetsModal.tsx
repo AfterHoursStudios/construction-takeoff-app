@@ -372,15 +372,15 @@ export default function ToolPresetsModal({ onClose }: ToolPresetsModalProps) {
                           value={materialCoverageAmount}
                           onChange={(e) => setMaterialCoverageAmount(e.target.value)}
                           placeholder="Coverage"
-                          className="input-field flex-1"
+                          className="input-field w-32"
                         />
-                        <span className="self-center text-slate-500 text-sm">
+                        <span className="self-center text-slate-500 text-sm whitespace-nowrap">
                           {formType === 'area' ? 'SF' : formType === 'linear' ? 'LF' : 'EA'} per
                         </span>
                         <select
                           value={materialCoverageUnit}
                           onChange={(e) => setMaterialCoverageUnit(e.target.value)}
-                          className="input-field w-28"
+                          className="input-field w-20"
                         >
                           {COVERAGE_UNITS.map((unit) => (
                             <option key={unit} value={unit}>{unit}</option>
