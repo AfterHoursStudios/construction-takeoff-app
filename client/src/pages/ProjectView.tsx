@@ -32,6 +32,7 @@ import ScaleCalibrationModal from '../components/ScaleCalibrationModal';
 import ExportModal from '../components/ExportModal';
 import NoteInputModal from '../components/NoteInputModal';
 import ToolPresetsModal from '../components/ToolPresetsModal';
+import SavedMaterialsModal from '../components/SavedMaterialsModal';
 import type { ActiveTool } from '../types';
 
 export default function ProjectView() {
@@ -78,6 +79,7 @@ export default function ProjectView() {
   const [showScaleModal, setShowScaleModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showToolPresetsModal, setShowToolPresetsModal] = useState(false);
+  const [showSavedMaterialsModal, setShowSavedMaterialsModal] = useState(false);
   const [showPresetPicker, setShowPresetPicker] = useState(false);
   const [pdfDimensions, setPdfDimensions] = useState({ width: 0, height: 0 });
   const [isUploadingPdf, setIsUploadingPdf] = useState(false);
@@ -484,6 +486,16 @@ export default function ProjectView() {
                     <Settings className="w-4 h-4" />
                     Manage Presets
                   </button>
+                  <button
+                    onClick={() => {
+                      setShowPresetPicker(false);
+                      setShowSavedMaterialsModal(true);
+                    }}
+                    className="w-full px-3 py-2 text-sm text-green-600 hover:bg-green-50 rounded flex items-center justify-center gap-2"
+                  >
+                    <Package className="w-4 h-4" />
+                    Manage Materials
+                  </button>
                 </div>
               </div>
             )}
@@ -703,6 +715,10 @@ export default function ProjectView() {
 
       {showToolPresetsModal && (
         <ToolPresetsModal onClose={() => setShowToolPresetsModal(false)} />
+      )}
+
+      {showSavedMaterialsModal && (
+        <SavedMaterialsModal onClose={() => setShowSavedMaterialsModal(false)} />
       )}
 
       {pendingNotePosition && (
