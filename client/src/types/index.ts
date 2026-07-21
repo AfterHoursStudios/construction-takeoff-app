@@ -151,6 +151,9 @@ export interface ReferenceLine {
 // UI State types
 export type ActiveTool = 'select' | 'pan' | 'scale' | 'linear' | 'area' | 'count' | 'note' | 'measure' | 'line';
 
+// Quick draw modes - modifiers for linear/area tools
+export type QuickDrawMode = 'default' | 'line' | 'rectangle';
+
 // Current drawing config
 export interface DrawingConfig {
   color: string;
