@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
-import { X, Download, FileText } from 'lucide-react';
+import { X, Download, FileText, Table } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as pdfjsLib from 'pdfjs-dist';
+import * as XLSX from 'xlsx';
 import { useProjectStore } from '../stores/projectStore';
 import { supabase, BUCKET_NAME } from '../lib/supabase';
 import { formatMeasurement } from '../utils/format';
@@ -525,7 +526,8 @@ export default function ExportModal({ onClose }: ExportModalProps) {
     includeMarkedPages: true,
   });
 
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isGeneratingExcel, setIsGeneratingExcel] = useState(false);
 
   // Get all measurements for current project
   const projectMeasurements = useMemo(() => {
@@ -612,10 +614,170 @@ export default function ExportModal({ onClose }: ExportModalProps) {
     return totals;
   }, [projectMeasurements]);
 
+  const handleExcelExport = () => {
+    if (!currentProject) return;
+
+    setIsGeneratingExcel(true);
+
+    try {
+      const workbook = XLSX.utils.book_new();
+
+      // ============ SHEET 1: Project Summary ============
+      const summaryData: (string | number)[][] = [
+        ['PROJECT SUMMARY'],
+        [],
+        ['Project Name', currentProject.name],
+        ['Client', currentProject.clientName || 'N/A'],
+        ['Address', currentProject.address || 'N/A'],
+        [],
+        ['Export Date', new Date().toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })],
+        ['Total Measurements', projectMeasurements.length],
+        ['Total Pages', measurementsByPage.size],
+      ];
+
+      if (options.preparedBy) {
+        summaryData.push(['Prepared By', options.preparedBy]);
+      }
+
+      if (currentProject.notes) {
+        summaryData.push([], ['Project Notes', currentProject.notes]);
+      }
+
+      const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+      summarySheet['!cols'] = [{ wch: 20 }, { wch: 50 }];
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Project Summary');
+
+      // ============ SHEET 2: Measurements ============
+      const measurementsData: (string | number)[][] = [
+        ['Page', 'Measurement Name', 'Type', 'Gross Value', 'Deductions', 'Net Value', 'Unit'],
+      ];
+
+      // Track rows for material sub-rows
+      const materialRows: { afterRow: number; materials: { name: string; coverage: string; quantity: string }[] }[] = [];
+      let currentRow = 1; // Start after header
+
+      measurementsByPage.forEach((pageMeasurements, pageNumber) => {
+        const pageName = getPageName(currentProject.id, pageNumber);
+
+        pageMeasurements.forEach((measurement) => {
+          const grossValue = measurement.value;
+          const subtractionTotal = (measurement.subtractions || []).reduce((sum, s) => sum + s.value, 0);
+          const netValue = calculateNetValue(measurement);
+
+          measurementsData.push([
+            pageName,
+            measurement.name,
+            measurement.measurementType.charAt(0).toUpperCase() + measurement.measurementType.slice(1),
+            formatMeasurement(grossValue, measurement.unit),
+            subtractionTotal > 0 ? formatMeasurement(subtractionTotal, measurement.unit) : '-',
+            formatMeasurement(netValue, measurement.unit),
+            measurement.unit,
+          ]);
+          currentRow++;
+
+          // Collect materials for this measurement
+          if (measurement.materials.length > 0) {
+            const netRatio = grossValue > 0 ? netValue / grossValue : 1;
+
+            const materials = measurement.materials.map((mat) => {
+              const coverage = mat.hasCoverage && mat.coverageAmount && mat.coverageUnit
+                ? `1 ${mat.coverageUnit}/${mat.coverageAmount} ${measurement.unit}`
+                : mat.isStud && mat.studSpacing
+                ? `${mat.studSpacing}" OC`
+                : mat.isPlate && mat.plateLength
+                ? `${mat.plateLength}' plates`
+                : '-';
+
+              const adjustedQty = mat.quantity ? mat.quantity * netRatio : undefined;
+              const wasteFactor = 1 + (mat.wasteFactor || 0) / 100;
+              let quantity: string;
+              if (mat.isStud && adjustedQty) {
+                quantity = `${Math.ceil(adjustedQty * wasteFactor)} studs`;
+              } else if (mat.isPlate && adjustedQty) {
+                quantity = `${Math.ceil(adjustedQty * wasteFactor)} plates`;
+              } else if (mat.hasCoverage && adjustedQty && mat.coverageUnit) {
+                quantity = `${Math.ceil(adjustedQty * wasteFactor)} ${mat.coverageUnit}s`;
+              } else {
+                quantity = formatMeasurement(netValue, measurement.unit);
+              }
+
+              return { name: mat.name, coverage, quantity };
+            });
+
+            materialRows.push({ afterRow: currentRow, materials });
+          }
+        });
+      });
+
+      // Insert material sub-rows (process in reverse order to maintain correct indices)
+      let insertOffset = 0;
+      materialRows.forEach((mr) => {
+        const insertIndex = mr.afterRow + insertOffset;
+        mr.materials.forEach((mat, idx) => {
+          measurementsData.splice(insertIndex + idx, 0, [
+            '', // Empty page column
+            `  └ ${mat.name}`, // Indented material name
+            '', // Empty type
+            '', // Empty gross
+            mat.coverage, // Coverage in deductions column
+            mat.quantity, // Quantity in net column
+            '', // Empty unit
+          ]);
+        });
+        insertOffset += mr.materials.length;
+      });
+
+      const measurementsSheet = XLSX.utils.aoa_to_sheet(measurementsData);
+      measurementsSheet['!cols'] = [
+        { wch: 15 }, // Page
+        { wch: 30 }, // Measurement Name
+        { wch: 10 }, // Type
+        { wch: 15 }, // Gross Value
+        { wch: 15 }, // Deductions
+        { wch: 15 }, // Net Value
+        { wch: 8 },  // Unit
+      ];
+      XLSX.utils.book_append_sheet(workbook, measurementsSheet, 'Measurements');
+
+      // ============ SHEET 3: Material Totals ============
+      if (options.includeMaterialTotals && materialTotals.size > 0) {
+        const materialsData: (string | number)[][] = [
+          ['Material', 'Total Quantity'],
+        ];
+
+        materialTotals.forEach((data, name) => {
+          const quantity = data.quantity > 0
+            ? `${Math.ceil(data.quantity)} ${data.unit}s`
+            : formatMeasurement(data.rawValue, data.rawUnit);
+          materialsData.push([name, quantity]);
+        });
+
+        const materialsSheet = XLSX.utils.aoa_to_sheet(materialsData);
+        materialsSheet['!cols'] = [{ wch: 30 }, { wch: 20 }];
+        XLSX.utils.book_append_sheet(workbook, materialsSheet, 'Material Totals');
+      }
+
+      // Generate filename and save
+      const fileName = `${currentProject.name.replace(/[^a-zA-Z0-9]/g, '_')}_Takeoff_${
+        new Date().toISOString().split('T')[0]
+      }.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+    } catch (err) {
+      console.error('Excel export error:', err);
+      alert('Failed to generate Excel file. Please try again.');
+    } finally {
+      setIsGeneratingExcel(false);
+    }
+  };
+
   const handleExport = async () => {
     if (!currentProject) return;
 
-    setIsGenerating(true);
+    setIsGeneratingPdf(true);
 
     try {
       const doc = new jsPDF();
@@ -1074,7 +1236,7 @@ export default function ExportModal({ onClose }: ExportModalProps) {
       console.error('Export error:', err);
       alert('Failed to generate PDF. Please try again.');
     } finally {
-      setIsGenerating(false);
+      setIsGeneratingPdf(false);
     }
   };
 
@@ -1196,11 +1358,20 @@ export default function ExportModal({ onClose }: ExportModalProps) {
           </button>
           <button
             onClick={handleExport}
-            disabled={isGenerating || projectMeasurements.length === 0}
+            disabled={isGeneratingPdf || projectMeasurements.length === 0}
             className="btn btn-primary flex-1 flex items-center justify-center gap-2"
           >
             <Download className="w-4 h-4" />
-            {isGenerating ? 'Generating...' : 'Download PDF'}
+            {isGeneratingPdf ? 'Generating...' : 'Download PDF'}
+          </button>
+          <button
+            onClick={handleExcelExport}
+            disabled={isGeneratingExcel || projectMeasurements.length === 0}
+            className="btn btn-primary flex-1 flex items-center justify-center gap-2"
+            style={{ backgroundColor: '#217346' }}
+          >
+            <Table className="w-4 h-4" />
+            {isGeneratingExcel ? 'Generating...' : 'Download Excel'}
           </button>
         </div>
       </div>
