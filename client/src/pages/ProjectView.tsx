@@ -9,6 +9,8 @@ import {
   Download,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   Copy,
   Ruler,
   Square,
@@ -91,7 +93,7 @@ export default function ProjectView() {
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [spacePressed, setSpacePressed] = useState(false);
-  const [pageSourceMap, setPageSourceMap] = useState<Record<number, number>>({});
+  const [pageOrder, setPageOrder] = useState<number[]>([]); // Array of source PDF pages in display order
 
   // Load user data if not already loaded (direct navigation to project)
   useEffect(() => {
@@ -583,19 +585,49 @@ export default function ProjectView() {
               </button>
               <button
                 onClick={() => {
-                  const newPage = totalPages + 1;
-                  const sourcePage = pageSourceMap[currentPage] || currentPage;
-                  setPageSourceMap(prev => ({ ...prev, [newPage]: sourcePage }));
-                  setTotalPages(newPage);
+                  const sourcePage = pageOrder[currentPage - 1] || currentPage;
+                  const newOrder = [...pageOrder, sourcePage];
+                  setPageOrder(newOrder);
+                  setTotalPages(newOrder.length);
                   if (projectId) {
-                    setPageName(projectId, newPage, `${getPageName(projectId, currentPage)} (Copy)`);
+                    setPageName(projectId, newOrder.length, `${getPageName(projectId, currentPage)} (Copy)`);
                   }
-                  setCurrentPage(newPage);
+                  setCurrentPage(newOrder.length);
                 }}
                 className="p-2 hover:bg-slate-100 rounded-lg ml-1"
                 title="Duplicate page"
               >
                 <Copy className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => {
+                  if (currentPage > 1) {
+                    const newOrder = [...pageOrder];
+                    [newOrder[currentPage - 2], newOrder[currentPage - 1]] = [newOrder[currentPage - 1], newOrder[currentPage - 2]];
+                    setPageOrder(newOrder);
+                    setCurrentPage(currentPage - 1);
+                  }
+                }}
+                disabled={currentPage <= 1}
+                className="p-1.5 hover:bg-slate-100 rounded disabled:opacity-30"
+                title="Move page up"
+              >
+                <ChevronUp className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => {
+                  if (currentPage < totalPages) {
+                    const newOrder = [...pageOrder];
+                    [newOrder[currentPage - 1], newOrder[currentPage]] = [newOrder[currentPage], newOrder[currentPage - 1]];
+                    setPageOrder(newOrder);
+                    setCurrentPage(currentPage + 1);
+                  }
+                }}
+                disabled={currentPage >= totalPages}
+                className="p-1.5 hover:bg-slate-100 rounded disabled:opacity-30"
+                title="Move page down"
+              >
+                <ChevronDown className="w-4 h-4" />
               </button>
             </div>
           )}
@@ -691,8 +723,11 @@ export default function ProjectView() {
                 >
                   <PdfViewer
                     url={pdfUrl}
-                    page={pageSourceMap[currentPage] || currentPage}
-                    onLoad={setTotalPages}
+                    page={pageOrder[currentPage - 1] || currentPage}
+                    onLoad={(count) => {
+                      setTotalPages(count);
+                      setPageOrder(Array.from({ length: count }, (_, i) => i + 1));
+                    }}
                     onDimensionsChange={setPdfDimensions}
                   />
                   <MeasurementCanvas
