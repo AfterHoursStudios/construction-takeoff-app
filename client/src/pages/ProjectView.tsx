@@ -647,11 +647,20 @@ export default function ProjectView() {
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={(e) => {
                       const fromIdx = parseInt(e.dataTransfer.getData('pageIndex'));
-                      if (fromIdx !== idx) {
+                      if (fromIdx !== idx && projectId) {
+                        // Save names before reorder
+                        const names = pageOrder.map((_, i) => getPageName(projectId, i + 1));
+                        // Reorder pages
                         const newOrder = [...pageOrder];
                         const [moved] = newOrder.splice(fromIdx, 1);
                         newOrder.splice(idx, 0, moved);
                         setPageOrder(newOrder);
+                        // Reorder names to match
+                        const newNames = [...names];
+                        const [movedName] = newNames.splice(fromIdx, 1);
+                        newNames.splice(idx, 0, movedName);
+                        newNames.forEach((name, i) => setPageName(projectId, i + 1, name));
+                        // Update current page
                         if (currentPage === fromIdx + 1) setCurrentPage(idx + 1);
                         else if (currentPage === idx + 1) setCurrentPage(fromIdx + 1);
                       }
