@@ -9,6 +9,7 @@ import {
   Download,
   ChevronLeft,
   ChevronRight,
+  Copy,
   Ruler,
   Square,
   MousePointer,
@@ -90,6 +91,7 @@ export default function ProjectView() {
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [spacePressed, setSpacePressed] = useState(false);
+  const [pageSourceMap, setPageSourceMap] = useState<Record<number, number>>({});
 
   // Load user data if not already loaded (direct navigation to project)
   useEffect(() => {
@@ -579,6 +581,22 @@ export default function ProjectView() {
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
+              <button
+                onClick={() => {
+                  const newPage = totalPages + 1;
+                  const sourcePage = pageSourceMap[currentPage] || currentPage;
+                  setPageSourceMap(prev => ({ ...prev, [newPage]: sourcePage }));
+                  setTotalPages(newPage);
+                  if (projectId) {
+                    setPageName(projectId, newPage, `${getPageName(projectId, currentPage)} (Copy)`);
+                  }
+                  setCurrentPage(newPage);
+                }}
+                className="p-2 hover:bg-slate-100 rounded-lg ml-1"
+                title="Duplicate page"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
             </div>
           )}
 
@@ -673,7 +691,7 @@ export default function ProjectView() {
                 >
                   <PdfViewer
                     url={pdfUrl}
-                    page={currentPage}
+                    page={pageSourceMap[currentPage] || currentPage}
                     onLoad={setTotalPages}
                     onDimensionsChange={setPdfDimensions}
                   />
