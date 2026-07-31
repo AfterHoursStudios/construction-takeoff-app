@@ -900,7 +900,6 @@ export default function MeasurementCanvas({
               activeTool={isSubtractMode ? 'subtract' : activeTool}
               color={isSubtractMode ? '#ef4444' : (activeTool === 'measure' ? '#f59e0b' : drawingConfig.color)}
               pageScale={pageScale}
-              wallHeight={wallHeight}
             />
           )}
 
@@ -1193,37 +1192,26 @@ function MeasurementShape({ measurement, isSelected, selectedSegmentIndex, pageS
               })}
 
               {/* Segment label - show net value if subtractions exist */}
-              {(() => {
-                const isWallType = measurementType === 'wall';
-                const wh = measurement.wallHeight || 9;
-                const displayValue = segSubs.length > 0 ? netValue : segValue;
-                const sfValue = isWallType ? displayValue * wh : displayValue;
-                const labelText = isWallType
-                  ? `${formatMeasurement(displayValue, 'LF')} × ${wh}' = ${formatMeasurement(sfValue, 'SF')}${segSubs.length > 0 ? ' net' : ''}`
-                  : (segSubs.length > 0 ? `${formatMeasurement(netValue, unit)} net` : formatMeasurement(segValue, unit));
-                const labelWidth = isWallType ? 140 : (segSubs.length > 0 ? 70 : 60);
-                return (
-                  <Group x={midpoint.x} y={midpoint.y - 20} listening={false}>
-                    <Rect
-                      x={-labelWidth / 2}
-                      y={-8}
-                      width={labelWidth}
-                      height={18}
-                      fill={isSegmentSelected ? color : 'white'}
-                      cornerRadius={3}
-                      opacity={0.9}
-                    />
-                    <Text
-                      x={-labelWidth / 2 + 4}
-                      y={-6}
-                      text={labelText}
-                      fontSize={isWallType ? 10 : 11}
-                      fill={isSegmentSelected ? '#fff' : color}
-                      fontStyle="bold"
-                    />
-                  </Group>
-                );
-              })()}
+              {/* For wall measurements, show LF only on canvas (SF shown in sidebar) */}
+              <Group x={midpoint.x} y={midpoint.y - 20} listening={false}>
+                <Rect
+                  x={-30}
+                  y={-8}
+                  width={segSubs.length > 0 ? 70 : 60}
+                  height={18}
+                  fill={isSegmentSelected ? color : 'white'}
+                  cornerRadius={3}
+                  opacity={0.9}
+                />
+                <Text
+                  x={-28}
+                  y={-6}
+                  text={segSubs.length > 0 ? `${formatMeasurement(netValue, 'LF')} net` : formatMeasurement(segValue, 'LF')}
+                  fontSize={11}
+                  fill={isSegmentSelected ? '#fff' : color}
+                  fontStyle="bold"
+                />
+              </Group>
 
               {/* Subtract button - show when segment is selected and not in subtract mode */}
               {isSegmentSelected && !isSubtractMode && onStartSubtract && (
@@ -1455,10 +1443,9 @@ interface CurrentDrawingProps {
   activeTool: string;
   color: string;
   pageScale: PageScale | null;
-  wallHeight?: number;
 }
 
-function CurrentDrawing({ points, mousePos, activeTool, color, pageScale, wallHeight = 9 }: CurrentDrawingProps) {
+function CurrentDrawing({ points, mousePos, activeTool, color, pageScale }: CurrentDrawingProps) {
   const allPoints = mousePos ? [...points, mousePos] : points;
   const flatPoints = allPoints.flatMap((p) => [p.x, p.y]);
 
@@ -1565,8 +1552,8 @@ function CurrentDrawing({ points, mousePos, activeTool, color, pageScale, wallHe
             <Rect
               x={0}
               y={0}
-              width={isSubtraction ? 95 : (activeTool === 'area' ? 90 : (activeTool === 'wall' ? 85 : 75))}
-              height={(activeTool === 'area' || isSubtraction) && allPoints.length >= 3 ? 38 : (activeTool === 'wall' && points.length > 0 ? 38 : 22)}
+              width={isSubtraction ? 95 : (activeTool === 'area' ? 90 : 75)}
+              height={(activeTool === 'area' || isSubtraction) && allPoints.length >= 3 ? 38 : 22}
               fill={isSubtraction ? "rgba(185, 28, 28, 0.9)" : "rgba(0, 0, 0, 0.8)"}
               cornerRadius={4}
             />
@@ -1590,23 +1577,14 @@ function CurrentDrawing({ points, mousePos, activeTool, color, pageScale, wallHe
               />
             )}
             {activeTool === 'wall' && points.length > 0 && (
-              <>
-                <Text
-                  x={5}
-                  y={14}
-                  text={`LF: ${formatValue(totalDistance)}`}
-                  fontSize={10}
-                  fill="#fff"
-                />
-                <Text
-                  x={5}
-                  y={24}
-                  text={`SF: ${pageScale ? formatMeasurement(totalDistance * wallHeight, 'SF') : `${(totalDistance * wallHeight).toFixed(0)}px`}`}
-                  fontSize={10}
-                  fill="#4ade80"
-                  fontStyle="bold"
-                />
-              </>
+              <Text
+                x={5}
+                y={14}
+                text={`Total: ${formatValue(totalDistance)}`}
+                fontSize={10}
+                fill="#4ade80"
+                fontStyle="bold"
+              />
             )}
             {activeTool === 'area' && (
               <>
