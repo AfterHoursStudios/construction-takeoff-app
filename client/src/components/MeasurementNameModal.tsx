@@ -223,7 +223,9 @@ export default function MeasurementNameModal({ onClose }: MeasurementNameModalPr
                 Name This Measurement
               </h2>
               <p className="text-sm text-slate-500">
-                {getTypeLabel()} - {formatMeasurement(pendingMeasurement.value, pendingMeasurement.unit)}
+                {getTypeLabel()} - {pendingMeasurement.measurementType === 'wall' && pendingMeasurement.wallHeight
+                  ? `${formatMeasurement(pendingMeasurement.value / pendingMeasurement.wallHeight, 'LF')} × ${pendingMeasurement.wallHeight}' = ${formatMeasurement(pendingMeasurement.value, 'SF')}`
+                  : formatMeasurement(pendingMeasurement.value, pendingMeasurement.unit)}
               </p>
             </div>
           </div>

@@ -425,7 +425,28 @@ export default function TakeoffSidebar() {
                                 {measurement.name}
                               </div>
                               <div className="text-sm text-slate-500">
-                                {(measurement.subtractions?.length || 0) > 0 ? (
+                                {measurement.measurementType === 'wall' ? (
+                                  // Wall measurements show LF × height = SF
+                                  (() => {
+                                    const wh = measurement.wallHeight || 9;
+                                    const netSf = calculateMeasurementNetValue(measurement);
+                                    const netLf = netSf / wh;
+                                    const grossLf = measurement.value / wh;
+                                    const hasSubtractions = (measurement.subtractions?.length || 0) > 0;
+                                    return hasSubtractions ? (
+                                      <>
+                                        <span className="text-slate-400 line-through mr-1">
+                                          {formatMeasurement(grossLf, 'LF')}
+                                        </span>
+                                        <span className="text-green-600 font-medium">
+                                          {formatMeasurement(netLf, 'LF')} × {wh}' = {formatMeasurement(netSf, 'SF')}
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <>{formatMeasurement(netLf, 'LF')} × {wh}' = {formatMeasurement(netSf, 'SF')}</>
+                                    );
+                                  })()
+                                ) : (measurement.subtractions?.length || 0) > 0 ? (
                                   <>
                                     <span className="text-slate-400 line-through mr-1">
                                       {formatMeasurement(measurement.value, measurement.unit)}
