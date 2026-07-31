@@ -206,6 +206,7 @@ export const useProjectStore = create<ProjectState>()(
     drawingConfig: {
       color: '#3b82f6',
       lineWeight: 3,
+      wallHeight: 9,
     },
     continuingMeasurementName: null,
     savedMaterials: [],

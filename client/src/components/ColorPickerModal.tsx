@@ -22,14 +22,17 @@ const PRESET_COLORS = [
 ];
 
 const LINE_WEIGHTS = [1, 2, 3, 4, 5, 6, 8, 10];
+const WALL_HEIGHTS = [8, 9, 10, 12];
 
 export default function ColorPickerModal({ onClose }: ColorPickerModalProps) {
   const { activeTool, drawingConfig, setDrawingConfig } = useProjectStore();
   const [color, setColor] = useState(drawingConfig.color);
   const [lineWeight, setLineWeight] = useState(drawingConfig.lineWeight);
+  const [wallHeight, setWallHeight] = useState(drawingConfig.wallHeight || 9);
+  const [customWallHeight, setCustomWallHeight] = useState('');
 
   const handleSave = () => {
-    setDrawingConfig({ color, lineWeight });
+    setDrawingConfig({ color, lineWeight, wallHeight });
     onClose();
   };
 
@@ -39,6 +42,8 @@ export default function ColorPickerModal({ onClose }: ColorPickerModalProps) {
         return 'Linear Measurement';
       case 'area':
         return 'Area Measurement';
+      case 'wall':
+        return 'Wall Measurement';
       case 'count':
         return 'Count Measurement';
       default:
@@ -113,7 +118,7 @@ export default function ColorPickerModal({ onClose }: ColorPickerModalProps) {
           </div>
 
           {/* Line Weight selector */}
-          {(activeTool === 'linear' || activeTool === 'line' || activeTool === 'area') && (
+          {(activeTool === 'linear' || activeTool === 'line' || activeTool === 'area' || activeTool === 'wall') && (
             <div className="pt-4 mt-4 border-t border-slate-200">
               <label className="text-sm text-slate-600 mb-2 block">Line Weight:</label>
               <div className="flex items-center gap-2">
@@ -139,6 +144,54 @@ export default function ColorPickerModal({ onClose }: ColorPickerModalProps) {
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Wall Height selector */}
+          {activeTool === 'wall' && (
+            <div className="pt-4 mt-4 border-t border-slate-200">
+              <label className="text-sm text-slate-600 mb-2 block">Wall Height:</label>
+              <div className="flex items-center gap-2">
+                {WALL_HEIGHTS.map((h) => (
+                  <button
+                    key={h}
+                    onClick={() => {
+                      setWallHeight(h);
+                      setCustomWallHeight('');
+                    }}
+                    className={`px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all ${
+                      wallHeight === h && !customWallHeight
+                        ? 'border-primary-500 bg-primary-50 text-primary-700'
+                        : 'border-slate-300 hover:border-slate-400 text-slate-700'
+                    }`}
+                  >
+                    {h}'
+                  </button>
+                ))}
+                <div className="flex items-center gap-1 ml-2">
+                  <input
+                    type="number"
+                    value={customWallHeight}
+                    onChange={(e) => {
+                      setCustomWallHeight(e.target.value);
+                      const val = parseFloat(e.target.value);
+                      if (val > 0) {
+                        setWallHeight(val);
+                      }
+                    }}
+                    placeholder="Custom"
+                    className={`w-20 px-2 py-2 text-sm border-2 rounded-lg text-center ${
+                      customWallHeight ? 'border-primary-500 bg-primary-50' : 'border-slate-300'
+                    }`}
+                    min="1"
+                    step="0.5"
+                  />
+                  <span className="text-sm text-slate-500">ft</span>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 mt-2">
+                Wall SF = Linear Feet × Height
+              </p>
             </div>
           )}
         </div>

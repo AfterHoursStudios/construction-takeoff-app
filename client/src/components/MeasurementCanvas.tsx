@@ -9,15 +9,15 @@ interface MeasurementCanvasProps {
   width: number;
   height: number;
   onScaleCalibrationComplete: () => void;
-  wallHeight?: number;
 }
 
 export default function MeasurementCanvas({
   width,
   height,
   onScaleCalibrationComplete,
-  wallHeight = 9,
 }: MeasurementCanvasProps) {
+  // Get wallHeight from drawingConfig
+  const wallHeight = useProjectStore((state) => state.drawingConfig.wallHeight) || 9;
   const stageRef = useRef<Konva.Stage>(null);
 
   const {

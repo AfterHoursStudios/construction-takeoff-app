@@ -161,6 +161,7 @@ export type QuickDrawMode = 'default' | 'line' | 'rectangle';
 export interface DrawingConfig {
   color: string;
   lineWeight: number;
+  wallHeight?: number; // Height in feet for wall measurements (default: 9)
 }
 
 export interface ViewportState {

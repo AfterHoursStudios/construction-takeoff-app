@@ -90,7 +90,6 @@ export default function ProjectView() {
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [spacePressed, setSpacePressed] = useState(false);
-  const [wallHeight, setWallHeight] = useState(9); // Default 9 feet
 
   // Load user data if not already loaded (direct navigation to project)
   useEffect(() => {
@@ -522,34 +521,6 @@ export default function ProjectView() {
               </div>
             )}
           </div>
-          {/* Wall Height Selector - shown when wall tool is selected */}
-          {activeTool === 'wall' && (
-            <div className="flex items-center gap-1 ml-2 px-2 py-1 bg-slate-100 rounded-lg">
-              <span className="text-xs text-slate-600 mr-1">Height:</span>
-              {[8, 9, 10, 12].map((h) => (
-                <button
-                  key={h}
-                  onClick={() => setWallHeight(h)}
-                  className={`px-2 py-1 text-xs rounded ${
-                    wallHeight === h
-                      ? 'bg-primary-500 text-white'
-                      : 'bg-white text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {h}'
-                </button>
-              ))}
-              <input
-                type="number"
-                value={wallHeight}
-                onChange={(e) => setWallHeight(Math.max(1, parseFloat(e.target.value) || 9))}
-                className="w-12 px-1 py-1 text-xs border border-slate-300 rounded text-center"
-                min="1"
-                step="0.5"
-                title="Custom height"
-              />
-            </div>
-          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -710,7 +681,6 @@ export default function ProjectView() {
                     width={pdfDimensions.width}
                     height={pdfDimensions.height}
                     onScaleCalibrationComplete={() => setShowScaleModal(true)}
-                    wallHeight={wallHeight}
                   />
                 </div>
               </div>
