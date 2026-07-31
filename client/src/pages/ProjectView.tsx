@@ -9,8 +9,6 @@ import {
   Download,
   ChevronLeft,
   ChevronRight,
-  ChevronUp,
-  ChevronDown,
   Copy,
   Ruler,
   Square,
@@ -599,37 +597,7 @@ export default function ProjectView() {
               >
                 <Copy className="w-4 h-4" />
               </button>
-              <button
-                onClick={() => {
-                  if (currentPage > 1) {
-                    const newOrder = [...pageOrder];
-                    [newOrder[currentPage - 2], newOrder[currentPage - 1]] = [newOrder[currentPage - 1], newOrder[currentPage - 2]];
-                    setPageOrder(newOrder);
-                    setCurrentPage(currentPage - 1);
-                  }
-                }}
-                disabled={currentPage <= 1}
-                className="p-1.5 hover:bg-slate-100 rounded disabled:opacity-30"
-                title="Move page up"
-              >
-                <ChevronUp className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => {
-                  if (currentPage < totalPages) {
-                    const newOrder = [...pageOrder];
-                    [newOrder[currentPage - 1], newOrder[currentPage]] = [newOrder[currentPage], newOrder[currentPage - 1]];
-                    setPageOrder(newOrder);
-                    setCurrentPage(currentPage + 1);
-                  }
-                }}
-                disabled={currentPage >= totalPages}
-                className="p-1.5 hover:bg-slate-100 rounded disabled:opacity-30"
-                title="Move page down"
-              >
-                <ChevronDown className="w-4 h-4" />
-              </button>
-            </div>
+                          </div>
           )}
 
           {/* Zoom controls */}
@@ -669,20 +637,37 @@ export default function ProjectView() {
               <h3 className="text-sm font-semibold text-slate-700">Pages</h3>
             </div>
             <div className="p-2 space-y-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-                <button
-                  key={pageNum}
-                  onClick={() => handlePageChange(pageNum)}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                    currentPage === pageNum
-                      ? 'bg-primary-100 text-primary-700 font-medium'
-                      : 'hover:bg-slate-100 text-slate-600'
-                  }`}
-                >
-                  <span className="text-xs text-slate-400 mr-2">{pageNum}.</span>
-                  {projectId ? getPageName(projectId, pageNum) : `Page ${pageNum}`}
-                </button>
-              ))}
+              {pageOrder.map((sourcePage, idx) => {
+                const pageNum = idx + 1;
+                return (
+                  <div
+                    key={`${pageNum}-${sourcePage}`}
+                    draggable
+                    onDragStart={(e) => e.dataTransfer.setData('pageIndex', idx.toString())}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      const fromIdx = parseInt(e.dataTransfer.getData('pageIndex'));
+                      if (fromIdx !== idx) {
+                        const newOrder = [...pageOrder];
+                        const [moved] = newOrder.splice(fromIdx, 1);
+                        newOrder.splice(idx, 0, moved);
+                        setPageOrder(newOrder);
+                        if (currentPage === fromIdx + 1) setCurrentPage(idx + 1);
+                        else if (currentPage === idx + 1) setCurrentPage(fromIdx + 1);
+                      }
+                    }}
+                    onClick={() => handlePageChange(pageNum)}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors cursor-grab active:cursor-grabbing ${
+                      currentPage === pageNum
+                        ? 'bg-primary-100 text-primary-700 font-medium'
+                        : 'hover:bg-slate-100 text-slate-600'
+                    }`}
+                  >
+                    <span className="text-xs text-slate-400 mr-2">{pageNum}.</span>
+                    {projectId ? getPageName(projectId, pageNum) : `Page ${pageNum}`}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
