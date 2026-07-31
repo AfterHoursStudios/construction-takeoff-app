@@ -7,14 +7,14 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs
 interface PdfViewerProps {
   url: string;
   page: number;
-  onPageCountChange: (count: number) => void;
-  onDimensionsChange: (dimensions: { width: number; height: number }) => void;
+  onLoad?: (pageCount: number) => void;
+  onDimensionsChange?: (dimensions: { width: number; height: number }) => void;
 }
 
 export default function PdfViewer({
   url,
   page,
-  onPageCountChange,
+  onLoad,
   onDimensionsChange,
 }: PdfViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -23,13 +23,30 @@ export default function PdfViewer({
   const [error, setError] = useState<string | null>(null);
   const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
 
-  // Load PDF document
+  // Store callbacks in refs to avoid dependency issues
+  const onLoadRef = useRef(onLoad);
+  const onDimensionsChangeRef = useRef(onDimensionsChange);
+  const hasCalledOnLoad = useRef(false);
+  const lastDimensions = useRef<{ width: number; height: number } | null>(null);
+
+  // Update refs when callbacks change
+  useEffect(() => {
+    onLoadRef.current = onLoad;
+  }, [onLoad]);
+
+  useEffect(() => {
+    onDimensionsChangeRef.current = onDimensionsChange;
+  }, [onDimensionsChange]);
+
+  // Load PDF document - only depends on url
   useEffect(() => {
     let isCancelled = false;
+    hasCalledOnLoad.current = false;
 
     const loadPdf = async () => {
       setIsLoading(true);
       setError(null);
+      setPdfDoc(null);
 
       try {
         const loadingTask = pdfjsLib.getDocument(url);
@@ -37,7 +54,11 @@ export default function PdfViewer({
 
         if (!isCancelled) {
           setPdfDoc(pdf);
-          onPageCountChange(pdf.numPages);
+          // Call onLoad only once per PDF load
+          if (!hasCalledOnLoad.current && onLoadRef.current) {
+            hasCalledOnLoad.current = true;
+            onLoadRef.current(pdf.numPages);
+          }
         }
       } catch (err) {
         console.error('Error loading PDF:', err);
@@ -56,11 +77,14 @@ export default function PdfViewer({
     return () => {
       isCancelled = true;
     };
-  }, [url, onPageCountChange]);
+  }, [url]); // Only re-run when URL changes
 
-  // Render current page
+  // Render current page - only depends on pdfDoc and page
   useEffect(() => {
     if (!pdfDoc || !canvasRef.current) return;
+
+    // Clamp page to valid range
+    const pageNum = Math.max(1, Math.min(page, pdfDoc.numPages));
 
     const renderPage = async () => {
       // Cancel any ongoing render
@@ -69,7 +93,7 @@ export default function PdfViewer({
       }
 
       try {
-        const pdfPage = await pdfDoc.getPage(page);
+        const pdfPage = await pdfDoc.getPage(pageNum);
         const canvas = canvasRef.current;
         if (!canvas) return;
 
@@ -85,10 +109,21 @@ export default function PdfViewer({
 
         // Report dimensions at scale 1 for measurement calculations
         const unscaledViewport = pdfPage.getViewport({ scale: 1 });
-        onDimensionsChange({
+        const newDimensions = {
           width: unscaledViewport.width,
           height: unscaledViewport.height,
-        });
+        };
+
+        // Only call onDimensionsChange if dimensions actually changed
+        if (
+          onDimensionsChangeRef.current &&
+          (!lastDimensions.current ||
+            lastDimensions.current.width !== newDimensions.width ||
+            lastDimensions.current.height !== newDimensions.height)
+        ) {
+          lastDimensions.current = newDimensions;
+          onDimensionsChangeRef.current(newDimensions);
+        }
 
         // Scale canvas CSS to show at original size
         canvas.style.width = `${unscaledViewport.width}px`;
@@ -101,8 +136,9 @@ export default function PdfViewer({
 
         renderTaskRef.current = pdfPage.render(renderContext);
         await renderTaskRef.current.promise;
-      } catch (err: any) {
-        if (err?.name !== 'RenderingCancelledException') {
+      } catch (err: unknown) {
+        const error = err as { name?: string };
+        if (error?.name !== 'RenderingCancelledException') {
           console.error('Error rendering page:', err);
         }
       }
@@ -115,7 +151,7 @@ export default function PdfViewer({
         renderTaskRef.current.cancel();
       }
     };
-  }, [pdfDoc, page, onDimensionsChange]);
+  }, [pdfDoc, page]); // Only re-run when document or page changes
 
   if (isLoading) {
     return (

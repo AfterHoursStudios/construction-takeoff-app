@@ -674,7 +674,7 @@ export default function ProjectView() {
                   <PdfViewer
                     url={pdfUrl}
                     page={currentPage}
-                    onPageCountChange={setTotalPages}
+                    onLoad={setTotalPages}
                     onDimensionsChange={setPdfDimensions}
                   />
                   <MeasurementCanvas
