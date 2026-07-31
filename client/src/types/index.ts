@@ -39,7 +39,7 @@ export interface Point {
   y: number;
 }
 
-export type MeasurementType = 'linear' | 'area' | 'count';
+export type MeasurementType = 'linear' | 'area' | 'count' | 'wall';
 export type UnitType = 'LF' | 'SF' | 'EA';
 
 // Material attached to a measurement
@@ -59,6 +59,8 @@ export interface MeasurementMaterial {
   isPlate?: boolean; // true = use plate length calculation
   plateLength?: number; // length of plate material in feet (8, 10, 12, etc.)
   plateCount?: number; // number of plates (1 for single, 2 for top+bottom, 3 for double top)
+  // Wall calculation options
+  wallCalculationBase?: 'linear' | 'square'; // Which value to use for coverage calc on wall measurements
 }
 
 // Saved material template for reuse
@@ -111,6 +113,7 @@ export interface Measurement {
   unit: UnitType;
   color: string;
   lineWeight?: number; // line thickness for rendering
+  wallHeight?: number; // Height in feet (only for wall measurements)
   materials: MeasurementMaterial[]; // materials attached
   isVisible: boolean;
   createdAt: string;
@@ -149,7 +152,7 @@ export interface ReferenceLine {
 }
 
 // UI State types
-export type ActiveTool = 'select' | 'pan' | 'scale' | 'linear' | 'area' | 'count' | 'note' | 'measure' | 'line';
+export type ActiveTool = 'select' | 'pan' | 'scale' | 'linear' | 'area' | 'count' | 'wall' | 'note' | 'measure' | 'line';
 
 // Quick draw modes - modifiers for linear/area tools
 export type QuickDrawMode = 'default' | 'line' | 'rectangle';
@@ -174,6 +177,7 @@ export interface PendingMeasurement {
   unit: UnitType;
   color: string;
   lineWeight?: number;
+  wallHeight?: number; // Height in feet (only for wall measurements)
 }
 
 // Helper to convert units for display

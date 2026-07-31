@@ -46,7 +46,7 @@ export default function TakeoffSidebar() {
     const scale = getPageScale(projectId, pageNumber);
     const pixelsPerUnit = scale?.pixelsPerUnit || 1;
 
-    if (measurementType === 'linear') {
+    if (measurementType === 'linear' || measurementType === 'wall') {
       let total = 0;
       for (let i = 1; i < segment.length; i++) {
         const dx = segment[i].x - segment[i - 1].x;

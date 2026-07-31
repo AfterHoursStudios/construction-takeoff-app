@@ -9,12 +9,14 @@ interface MeasurementCanvasProps {
   width: number;
   height: number;
   onScaleCalibrationComplete: () => void;
+  wallHeight?: number;
 }
 
 export default function MeasurementCanvas({
   width,
   height,
   onScaleCalibrationComplete,
+  wallHeight = 9,
 }: MeasurementCanvasProps) {
   const stageRef = useRef<Konva.Stage>(null);
 
@@ -447,8 +449,8 @@ export default function MeasurementCanvas({
       return;
     }
 
-    // Handle linear and area tools - check quickDrawMode for special behaviors
-    if (activeTool === 'linear' || activeTool === 'area') {
+    // Handle linear, area, and wall tools - check quickDrawMode for special behaviors
+    if (activeTool === 'linear' || activeTool === 'area' || activeTool === 'wall') {
       // Quick draw mode: 'line' - two-click straight line
       if (quickDrawMode === 'line') {
         if (!isDrawing) {
@@ -460,13 +462,15 @@ export default function MeasurementCanvas({
           // Second click - complete the line
           const startPoint = currentPoints[0];
           const distance = calculateDistance(startPoint, point);
+          const isWall = activeTool === 'wall';
           const pendingMeasurement: PendingMeasurement = {
-            measurementType: activeTool === 'area' ? 'area' : 'linear',
+            measurementType: isWall ? 'wall' : (activeTool === 'area' ? 'area' : 'linear'),
             points: [startPoint, point],
-            value: distance,
-            unit: activeTool === 'area' ? 'SF' : 'LF',
+            value: isWall ? distance * wallHeight : distance,
+            unit: isWall ? 'SF' : (activeTool === 'area' ? 'SF' : 'LF'),
             color: drawingConfig.color,
             lineWeight: drawingConfig.lineWeight,
+            wallHeight: isWall ? wallHeight : undefined,
           };
           setPendingMeasurement(pendingMeasurement);
           setIsDrawing(false);
@@ -583,7 +587,7 @@ export default function MeasurementCanvas({
     }
 
     // Handle rectangle mode - complete the rectangle on mouse up
-    if (quickDrawMode === 'rectangle' && rectangleStartPoint && isDrawing && (activeTool === 'linear' || activeTool === 'area')) {
+    if (quickDrawMode === 'rectangle' && rectangleStartPoint && isDrawing && (activeTool === 'linear' || activeTool === 'area' || activeTool === 'wall')) {
       const stage = e.target.getStage();
       if (!stage) return;
 
@@ -608,14 +612,14 @@ export default function MeasurementCanvas({
       let value: number;
       let unit: 'LF' | 'SF';
 
-      if (activeTool === 'linear') {
+      if (activeTool === 'linear' || activeTool === 'wall') {
         // Perimeter = 2 * (width + height)
         let perimeter = 2 * (width + height);
         if (pageScale) {
           perimeter = perimeter / pageScale.pixelsPerUnit;
         }
-        value = perimeter;
-        unit = 'LF';
+        value = activeTool === 'wall' ? perimeter * wallHeight : perimeter;
+        unit = activeTool === 'wall' ? 'SF' : 'LF';
       } else {
         // Area = width * height
         let area = width * height;
@@ -628,13 +632,15 @@ export default function MeasurementCanvas({
 
       // Only create measurement if value is meaningful
       if (value > 0.01) {
+        const isWall = activeTool === 'wall';
         const pendingMeasurement: PendingMeasurement = {
-          measurementType: activeTool === 'linear' ? 'linear' : 'area',
+          measurementType: isWall ? 'wall' : (activeTool === 'linear' ? 'linear' : 'area'),
           points: corners,
           value,
           unit,
           color: drawingConfig.color,
           lineWeight: drawingConfig.lineWeight,
+          wallHeight: isWall ? wallHeight : undefined,
         };
         setPendingMeasurement(pendingMeasurement);
       }
@@ -712,14 +718,19 @@ export default function MeasurementCanvas({
 
     // Finish the current measurement and open name modal
     if (currentPoints.length >= 2) {
+      const isWall = activeTool === 'wall';
       const measurementType: MeasurementType =
-        activeTool === 'area' ? 'area' : 'linear';
+        isWall ? 'wall' : (activeTool === 'area' ? 'area' : 'linear');
 
       let value: number;
       let unit: UnitType = 'LF';
 
       if (measurementType === 'area') {
         value = calculatePolygonArea(currentPoints);
+        unit = 'SF';
+      } else if (measurementType === 'wall') {
+        const linearFeet = calculatePolylineLength(currentPoints);
+        value = linearFeet * wallHeight;
         unit = 'SF';
       } else {
         value = calculatePolylineLength(currentPoints);
@@ -733,6 +744,7 @@ export default function MeasurementCanvas({
         unit,
         color: drawingConfig.color,
         lineWeight: drawingConfig.lineWeight,
+        wallHeight: isWall ? wallHeight : undefined,
       };
 
       setPendingMeasurement(pendingMeasurement);
@@ -1058,7 +1070,7 @@ function MeasurementShape({ measurement, isSelected, selectedSegmentIndex, pageS
     );
   }
 
-  if (measurementType === 'linear') {
+  if (measurementType === 'linear' || measurementType === 'wall') {
     // Get subtractions for this measurement
     const segmentSubtractions = subtractions || [];
 

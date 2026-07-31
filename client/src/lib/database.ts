@@ -132,6 +132,7 @@ export async function createMeasurement(userId: string, measurement: Measurement
       unit: measurement.unit,
       color: measurement.color,
       line_weight: measurement.lineWeight || 2,
+      wall_height: measurement.wallHeight,
       materials: measurement.materials,
       subtractions: measurement.subtractions || [],
       is_visible: measurement.isVisible,
@@ -152,6 +153,7 @@ export async function updateMeasurement(measurementId: string, updates: Partial<
   if (updates.value !== undefined) dbUpdates.value = updates.value;
   if (updates.color !== undefined) dbUpdates.color = updates.color;
   if (updates.lineWeight !== undefined) dbUpdates.line_weight = updates.lineWeight;
+  if (updates.wallHeight !== undefined) dbUpdates.wall_height = updates.wallHeight;
   if (updates.materials !== undefined) dbUpdates.materials = updates.materials;
   if (updates.subtractions !== undefined) dbUpdates.subtractions = updates.subtractions;
   if (updates.isVisible !== undefined) dbUpdates.is_visible = updates.isVisible;
@@ -192,6 +194,7 @@ function mapMeasurementFromDb(row: Record<string, unknown>): Measurement {
     unit: row.unit as Measurement['unit'],
     color: row.color as string,
     lineWeight: row.line_weight as number,
+    wallHeight: row.wall_height as number | undefined,
     materials: (row.materials as MeasurementMaterial[]) || [],
     subtractions: (row.subtractions as MeasurementSubtraction[]) || [],
     isVisible: row.is_visible as boolean,

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Ruler, Square, Hash } from 'lucide-react';
+import { X, Ruler, Square, Hash, Layers } from 'lucide-react';
 import { useProjectStore } from '../stores/projectStore';
 import { useAuthStore } from '../stores/authStore';
 import { formatMeasurement } from '../utils/format';
@@ -148,6 +148,7 @@ export default function MeasurementNameModal({ onClose }: MeasurementNameModalPr
         unit: pendingMeasurement.unit,
         color: pendingMeasurement.color,
         lineWeight: pendingMeasurement.lineWeight,
+        wallHeight: pendingMeasurement.wallHeight,
         materials: presetMaterials,
         isVisible: true,
         createdAt: new Date().toISOString(),
@@ -183,6 +184,8 @@ export default function MeasurementNameModal({ onClose }: MeasurementNameModalPr
         return <Ruler className="w-5 h-5" />;
       case 'area':
         return <Square className="w-5 h-5" />;
+      case 'wall':
+        return <Layers className="w-5 h-5" />;
       case 'count':
         return <Hash className="w-5 h-5" />;
     }
@@ -194,6 +197,8 @@ export default function MeasurementNameModal({ onClose }: MeasurementNameModalPr
         return 'Linear Measurement';
       case 'area':
         return 'Area Measurement';
+      case 'wall':
+        return 'Wall Measurement';
       case 'count':
         return 'Count';
     }

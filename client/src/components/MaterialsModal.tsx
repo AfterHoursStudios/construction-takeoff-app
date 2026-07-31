@@ -79,6 +79,11 @@ export default function MaterialsModal({ measurement, onClose }: MaterialsModalP
     return measurement.value - subtractionTotal;
   }, [measurement.value, measurement.subtractions]);
 
+  // For wall measurements, derive linear feet from square footage
+  const isWall = measurement.measurementType === 'wall';
+  const wallHeight = measurement.wallHeight || 9;
+  const linearFeet = isWall ? netValue / wallHeight : netValue;
+
   // Calculate stud count: (linear feet * 12 / spacing) + 1 + extra
   const calcStudCount = (linearFeet: number, spacing: number, extra: number) => {
     return Math.ceil((linearFeet * 12) / spacing) + 1 + extra;
@@ -101,12 +106,14 @@ export default function MaterialsModal({ measurement, onClose }: MaterialsModalP
 
   const handleAddFromTemplate = (template: SavedMaterial) => {
     let quantity: number | undefined;
+    const lf = isWall ? linearFeet : netValue;
 
     if (template.isStud && template.studSpacing) {
-      quantity = calcStudCount(netValue, template.studSpacing, template.studExtra || 0);
+      quantity = calcStudCount(lf, template.studSpacing, template.studExtra || 0);
     } else if (template.isPlate && template.plateLength) {
-      quantity = calcPlateCount(netValue, template.plateLength, template.plateCount || 1);
+      quantity = calcPlateCount(lf, template.plateLength, template.plateCount || 1);
     } else if (template.hasCoverage && template.coverageAmount) {
+      // For wall coverage materials, default to square feet
       quantity = netValue / template.coverageAmount;
     }
 
@@ -135,6 +142,8 @@ export default function MaterialsModal({ measurement, onClose }: MaterialsModalP
     let material: MeasurementMaterial;
 
     if (newMaterialType === 'stud') {
+      // For walls, use linear feet; for linear, use netValue directly
+      const lf = isWall ? linearFeet : netValue;
       material = {
         id: crypto.randomUUID(),
         name: newMaterialName.trim(),
@@ -143,9 +152,10 @@ export default function MaterialsModal({ measurement, onClose }: MaterialsModalP
         isStud: true,
         studSpacing: newStudSpacing,
         studExtra: newStudExtra,
-        quantity: calcStudCount(netValue, newStudSpacing, newStudExtra),
+        quantity: calcStudCount(lf, newStudSpacing, newStudExtra),
       };
     } else if (newMaterialType === 'plate') {
+      const lf = isWall ? linearFeet : netValue;
       material = {
         id: crypto.randomUUID(),
         name: newMaterialName.trim(),
@@ -154,7 +164,7 @@ export default function MaterialsModal({ measurement, onClose }: MaterialsModalP
         isPlate: true,
         plateLength: newPlateLength,
         plateCount: newPlateCount,
-        quantity: calcPlateCount(netValue, newPlateLength, newPlateCount),
+        quantity: calcPlateCount(lf, newPlateLength, newPlateCount),
       };
     } else {
       material = {
@@ -451,8 +461,8 @@ export default function MaterialsModal({ measurement, onClose }: MaterialsModalP
                   className="input-field mb-3"
                 />
 
-                {/* Material Type Selection - only show stud/plate for linear */}
-                {measurement.measurementType === 'linear' && (
+                {/* Material Type Selection - show stud/plate for linear and wall */}
+                {(measurement.measurementType === 'linear' || measurement.measurementType === 'wall') && (
                   <div className="flex gap-2 mb-3">
                     {(['regular', 'stud', 'plate'] as MaterialType[]).map((type) => (
                       <button

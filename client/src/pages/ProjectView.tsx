@@ -90,6 +90,7 @@ export default function ProjectView() {
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [spacePressed, setSpacePressed] = useState(false);
+  const [wallHeight, setWallHeight] = useState(9); // Default 9 feet
 
   // Load user data if not already loaded (direct navigation to project)
   useEffect(() => {
@@ -252,7 +253,7 @@ export default function ProjectView() {
     setContinuingMeasurementName(null);
 
     // Show color picker for measurement tools and line tool
-    if (tool === 'linear' || tool === 'area' || tool === 'count' || tool === 'line') {
+    if (tool === 'linear' || tool === 'area' || tool === 'count' || tool === 'wall' || tool === 'line') {
       setShowColorPicker(true);
     }
     setActiveTool(tool);
@@ -299,6 +300,20 @@ export default function ProjectView() {
     </svg>
   );
 
+  // Wall icon (brick wall pattern)
+  const WallIcon = () => (
+    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="2" y="4" width="20" height="16" rx="1" />
+      <line x1="2" y1="10" x2="22" y2="10" />
+      <line x1="2" y1="16" x2="22" y2="16" />
+      <line x1="7" y1="4" x2="7" y2="10" />
+      <line x1="17" y1="4" x2="17" y2="10" />
+      <line x1="12" y1="10" x2="12" y2="16" />
+      <line x1="7" y1="16" x2="7" y2="20" />
+      <line x1="17" y1="16" x2="17" y2="20" />
+    </svg>
+  );
+
   const tools: { id: ActiveTool; icon: React.ReactNode; label: string }[] = [
     { id: 'select', icon: <MousePointer className="w-5 h-5" />, label: 'Select' },
     { id: 'pan', icon: <Hand className="w-5 h-5" />, label: 'Pan' },
@@ -307,6 +322,7 @@ export default function ProjectView() {
     { id: 'line', icon: <Minus className="w-5 h-5" />, label: 'Line' },
     { id: 'linear', icon: <LinearIcon />, label: 'Linear' },
     { id: 'area', icon: <Square className="w-5 h-5" />, label: 'Area' },
+    { id: 'wall', icon: <WallIcon />, label: 'Wall' },
     { id: 'count', icon: <Hash className="w-5 h-5" />, label: 'Count' },
     { id: 'note', icon: <MessageSquare className="w-5 h-5" />, label: 'Note' },
   ];
@@ -506,6 +522,34 @@ export default function ProjectView() {
               </div>
             )}
           </div>
+          {/* Wall Height Selector - shown when wall tool is selected */}
+          {activeTool === 'wall' && (
+            <div className="flex items-center gap-1 ml-2 px-2 py-1 bg-slate-100 rounded-lg">
+              <span className="text-xs text-slate-600 mr-1">Height:</span>
+              {[8, 9, 10, 12].map((h) => (
+                <button
+                  key={h}
+                  onClick={() => setWallHeight(h)}
+                  className={`px-2 py-1 text-xs rounded ${
+                    wallHeight === h
+                      ? 'bg-primary-500 text-white'
+                      : 'bg-white text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {h}'
+                </button>
+              ))}
+              <input
+                type="number"
+                value={wallHeight}
+                onChange={(e) => setWallHeight(Math.max(1, parseFloat(e.target.value) || 9))}
+                className="w-12 px-1 py-1 text-xs border border-slate-300 rounded text-center"
+                min="1"
+                step="0.5"
+                title="Custom height"
+              />
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -666,6 +710,7 @@ export default function ProjectView() {
                     width={pdfDimensions.width}
                     height={pdfDimensions.height}
                     onScaleCalibrationComplete={() => setShowScaleModal(true)}
+                    wallHeight={wallHeight}
                   />
                 </div>
               </div>
