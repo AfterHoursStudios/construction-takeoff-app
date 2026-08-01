@@ -668,14 +668,35 @@ export default function ExportModal({ onClose }: ExportModalProps) {
           const subtractionTotal = (measurement.subtractions || []).reduce((sum, s) => sum + s.value, 0);
           const netValue = calculateNetValue(measurement);
 
+          // Wall measurements: show LF × height = SF
+          const isWall = measurement.measurementType === 'wall';
+          const wallHeight = measurement.wallHeight || 9;
+
+          let grossDisplay: string;
+          let deductDisplay: string;
+          let netDisplay: string;
+
+          if (isWall) {
+            const grossLf = grossValue / wallHeight;
+            const subLf = subtractionTotal / wallHeight;
+            const netLf = netValue / wallHeight;
+            grossDisplay = `${formatMeasurement(grossLf, 'LF')} x ${wallHeight}' = ${formatMeasurement(grossValue, 'SF')}`;
+            deductDisplay = subtractionTotal > 0 ? `${formatMeasurement(subLf, 'LF')} x ${wallHeight}' = ${formatMeasurement(subtractionTotal, 'SF')}` : '-';
+            netDisplay = `${formatMeasurement(netLf, 'LF')} x ${wallHeight}' = ${formatMeasurement(netValue, 'SF')}`;
+          } else {
+            grossDisplay = formatMeasurement(grossValue, measurement.unit);
+            deductDisplay = subtractionTotal > 0 ? formatMeasurement(subtractionTotal, measurement.unit) : '-';
+            netDisplay = formatMeasurement(netValue, measurement.unit);
+          }
+
           measurementsData.push([
             pageName,
             measurement.name,
             measurement.measurementType.charAt(0).toUpperCase() + measurement.measurementType.slice(1),
-            formatMeasurement(grossValue, measurement.unit),
-            subtractionTotal > 0 ? formatMeasurement(subtractionTotal, measurement.unit) : '-',
-            formatMeasurement(netValue, measurement.unit),
-            measurement.unit,
+            grossDisplay,
+            deductDisplay,
+            netDisplay,
+            isWall ? 'LF/SF' : measurement.unit,
           ]);
           currentRow++;
 
@@ -918,6 +939,10 @@ export default function ExportModal({ onClose }: ExportModalProps) {
           const netValue = calculateNetValue(measurement);
           const subtractionTotal = (measurement.subtractions || []).reduce((sum, s) => sum + s.value, 0);
 
+          // Wall measurements: show LF × height = SF
+          const isWall = measurement.measurementType === 'wall';
+          const wallHeight = measurement.wallHeight || 9;
+
           if (subtractionTotal > 0) {
             // Show breakdown: gross, minus openings, net
             doc.text(`${measurement.name}`, 20, yPos);
@@ -925,17 +950,37 @@ export default function ExportModal({ onClose }: ExportModalProps) {
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(9);
             doc.setTextColor(71, 85, 105);
-            doc.text(`Total: ${formatMeasurement(measurement.value, measurement.unit)}`, 25, yPos);
+            if (isWall) {
+              const grossLf = measurement.value / wallHeight;
+              doc.text(`Total: ${formatMeasurement(grossLf, 'LF')} x ${wallHeight}' = ${formatMeasurement(measurement.value, 'SF')}`, 25, yPos);
+            } else {
+              doc.text(`Total: ${formatMeasurement(measurement.value, measurement.unit)}`, 25, yPos);
+            }
             yPos += 4;
             doc.setTextColor(220, 38, 38); // red color
-            doc.text(`Less Openings: -${formatMeasurement(subtractionTotal, measurement.unit)}`, 25, yPos);
+            if (isWall) {
+              const subLf = subtractionTotal / wallHeight;
+              doc.text(`Less Openings: -${formatMeasurement(subLf, 'LF')} x ${wallHeight}' = -${formatMeasurement(subtractionTotal, 'SF')}`, 25, yPos);
+            } else {
+              doc.text(`Less Openings: -${formatMeasurement(subtractionTotal, measurement.unit)}`, 25, yPos);
+            }
             yPos += 4;
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(22, 163, 74); // green color
-            doc.text(`Net: ${formatMeasurement(netValue, measurement.unit)}`, 25, yPos);
+            if (isWall) {
+              const netLf = netValue / wallHeight;
+              doc.text(`Net: ${formatMeasurement(netLf, 'LF')} x ${wallHeight}' = ${formatMeasurement(netValue, 'SF')}`, 25, yPos);
+            } else {
+              doc.text(`Net: ${formatMeasurement(netValue, measurement.unit)}`, 25, yPos);
+            }
             yPos += 6;
           } else {
-            doc.text(`${measurement.name} - ${formatMeasurement(netValue, measurement.unit)}`, 20, yPos);
+            if (isWall) {
+              const netLf = netValue / wallHeight;
+              doc.text(`${measurement.name} - ${formatMeasurement(netLf, 'LF')} x ${wallHeight}' = ${formatMeasurement(netValue, 'SF')}`, 20, yPos);
+            } else {
+              doc.text(`${measurement.name} - ${formatMeasurement(netValue, measurement.unit)}`, 20, yPos);
+            }
             yPos += 6;
           }
 
@@ -1151,10 +1196,12 @@ export default function ExportModal({ onClose }: ExportModalProps) {
               doc.text(`Sheet: ${pageName}`, 15, 30);
 
               // Build legend (using net values)
-              const measurementsOnPage = new Map<string, { color: string; value: number; unit: string }>();
+              const measurementsOnPage = new Map<string, { color: string; value: number; unit: string; isWall: boolean; wallHeight: number }>();
               pageMeasurements.forEach((m) => {
                 const key = m.name;
                 const netVal = calculateNetValue(m);
+                const isWall = m.measurementType === 'wall';
+                const wallHeight = m.wallHeight || 9;
                 if (measurementsOnPage.has(key)) {
                   const existing = measurementsOnPage.get(key)!;
                   existing.value += netVal;
@@ -1163,11 +1210,13 @@ export default function ExportModal({ onClose }: ExportModalProps) {
                     color: m.color,
                     value: netVal,
                     unit: m.unit,
+                    isWall,
+                    wallHeight,
                   });
                 }
               });
 
-              let legendX = landscapeWidth - 70;
+              let legendX = landscapeWidth - 90;
               let legendY = 15;
               doc.setFontSize(8);
               doc.setFont('helvetica', 'bold');
@@ -1185,7 +1234,12 @@ export default function ExportModal({ onClose }: ExportModalProps) {
                 doc.rect(legendX, legendY - 2.5, 3, 3, 'F');
 
                 doc.setTextColor(51, 65, 85);
-                doc.text(`${name}: ${formatMeasurement(data.value, data.unit)}`, legendX + 5, legendY);
+                if (data.isWall) {
+                  const lfValue = data.value / data.wallHeight;
+                  doc.text(`${name}: ${formatMeasurement(lfValue, 'LF')} x ${data.wallHeight}' = ${formatMeasurement(data.value, 'SF')}`, legendX + 5, legendY);
+                } else {
+                  doc.text(`${name}: ${formatMeasurement(data.value, data.unit)}`, legendX + 5, legendY);
+                }
                 legendY += 4;
               });
 
