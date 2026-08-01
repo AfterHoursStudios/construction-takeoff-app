@@ -172,11 +172,25 @@ export default function ToolPresetsModal({ onClose }: ToolPresetsModalProps) {
     });
   };
 
+  const WallIcon = () => (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="2" y="4" width="20" height="16" rx="1" />
+      <line x1="2" y1="10" x2="22" y2="10" />
+      <line x1="2" y1="16" x2="22" y2="16" />
+      <line x1="7" y1="4" x2="7" y2="10" />
+      <line x1="17" y1="4" x2="17" y2="10" />
+      <line x1="12" y1="10" x2="12" y2="16" />
+      <line x1="7" y1="16" x2="7" y2="20" />
+      <line x1="17" y1="16" x2="17" y2="20" />
+    </svg>
+  );
+
   const getTypeIcon = (type: MeasurementType) => {
     switch (type) {
       case 'linear': return <Ruler className="w-4 h-4" />;
       case 'area': return <Square className="w-4 h-4" />;
       case 'count': return <Hash className="w-4 h-4" />;
+      case 'wall': return <WallIcon />;
     }
   };
 
@@ -185,6 +199,7 @@ export default function ToolPresetsModal({ onClose }: ToolPresetsModalProps) {
       case 'linear': return 'Linear (LF)';
       case 'area': return 'Area (SF)';
       case 'count': return 'Count (EA)';
+      case 'wall': return 'Wall (LF+SF)';
     }
   };
 
@@ -250,8 +265,8 @@ export default function ToolPresetsModal({ onClose }: ToolPresetsModalProps) {
               {/* Measurement Type */}
               <div>
                 <label className="input-label">Measurement Type</label>
-                <div className="grid grid-cols-3 gap-3">
-                  {(['linear', 'area', 'count'] as MeasurementType[]).map((type) => (
+                <div className="grid grid-cols-4 gap-3">
+                  {(['linear', 'area', 'wall', 'count'] as MeasurementType[]).map((type) => (
                     <button
                       key={type}
                       onClick={() => setFormType(type)}
@@ -305,7 +320,7 @@ export default function ToolPresetsModal({ onClose }: ToolPresetsModalProps) {
                           <span className="font-medium text-slate-700">{mat.name}</span>
                           {mat.hasCoverage && mat.coverageAmount && (
                             <span className="text-sm text-slate-500">
-                              ({mat.coverageAmount} {formType === 'area' ? 'SF' : 'LF'}/{mat.coverageUnit})
+                              ({mat.coverageAmount} {formType === 'area' || formType === 'wall' ? 'SF' : 'LF'}/{mat.coverageUnit})
                             </span>
                           )}
                           {mat.wasteFactor && mat.wasteFactor > 0 && (
@@ -375,7 +390,7 @@ export default function ToolPresetsModal({ onClose }: ToolPresetsModalProps) {
                           className="input-field w-32"
                         />
                         <span className="self-center text-slate-500 text-sm whitespace-nowrap">
-                          {formType === 'area' ? 'SF' : formType === 'linear' ? 'LF' : 'EA'} per
+                          {formType === 'area' || formType === 'wall' ? 'SF' : formType === 'linear' ? 'LF' : 'EA'} per
                         </span>
                         <select
                           value={materialCoverageUnit}
@@ -535,7 +550,7 @@ export default function ToolPresetsModal({ onClose }: ToolPresetsModalProps) {
                                 </div>
                                 {mat.hasCoverage && mat.coverageAmount && (
                                   <span className="text-slate-500">
-                                    {mat.coverageAmount} {preset.measurementType === 'area' ? 'SF' : 'LF'}/{mat.coverageUnit}
+                                    {mat.coverageAmount} {preset.measurementType === 'area' || preset.measurementType === 'wall' ? 'SF' : 'LF'}/{mat.coverageUnit}
                                   </span>
                                 )}
                               </div>
