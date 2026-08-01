@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Plus, Trash2, Edit2, Ruler, Square, Hash, Package, Check, ChevronDown, ChevronRight } from 'lucide-react';
+import { X, Plus, Trash2, Edit2, Ruler, Square, Hash, Package, Check, ChevronDown, ChevronRight, Search } from 'lucide-react';
 import { useProjectStore } from '../stores/projectStore';
 import { useAuthStore } from '../stores/authStore';
 import type { ToolPreset, SavedMaterial, MeasurementType } from '../types';
@@ -60,6 +60,7 @@ export default function ToolPresetsModal({ onClose }: ToolPresetsModalProps) {
   const [materialCoverageAmount, setMaterialCoverageAmount] = useState('');
   const [materialCoverageUnit, setMaterialCoverageUnit] = useState('box');
   const [materialWasteFactor, setMaterialWasteFactor] = useState(10);
+  const [materialSearch, setMaterialSearch] = useState('');
 
   const resetForm = () => {
     setFormName('');
@@ -69,6 +70,7 @@ export default function ToolPresetsModal({ onClose }: ToolPresetsModalProps) {
     setEditingPreset(null);
     setIsCreating(false);
     setShowMaterialForm(false);
+    setMaterialSearch('');
     resetMaterialForm();
   };
 
@@ -342,10 +344,28 @@ export default function ToolPresetsModal({ onClose }: ToolPresetsModalProps) {
                 {savedMaterials.length > 0 && !showMaterialForm && (
                   <div className="mb-3">
                     <p className="text-xs text-slate-500 mb-2">Add from saved materials:</p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="relative mb-2">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        value={materialSearch}
+                        onChange={(e) => setMaterialSearch(e.target.value)}
+                        placeholder="Search saved materials..."
+                        className="input-field pl-9 py-2 text-sm"
+                      />
+                      {materialSearch && (
+                        <button
+                          onClick={() => setMaterialSearch('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200 rounded"
+                        >
+                          <X className="w-3 h-3 text-slate-400" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
                       {savedMaterials
                         .filter(m => !formMaterials.some(fm => fm.name.toLowerCase() === m.name.toLowerCase()))
-                        .slice(0, 6)
+                        .filter(m => m.name.toLowerCase().includes(materialSearch.toLowerCase()))
                         .map((mat) => (
                           <button
                             key={mat.id}
@@ -355,6 +375,12 @@ export default function ToolPresetsModal({ onClose }: ToolPresetsModalProps) {
                             + {mat.name}
                           </button>
                         ))}
+                      {savedMaterials
+                        .filter(m => !formMaterials.some(fm => fm.name.toLowerCase() === m.name.toLowerCase()))
+                        .filter(m => m.name.toLowerCase().includes(materialSearch.toLowerCase()))
+                        .length === 0 && (
+                        <p className="text-sm text-slate-400 italic">No matching materials</p>
+                      )}
                     </div>
                   </div>
                 )}
