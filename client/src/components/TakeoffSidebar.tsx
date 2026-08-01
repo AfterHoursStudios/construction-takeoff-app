@@ -11,11 +11,13 @@ import {
   Layers,
   X,
   Minus,
+  Bookmark,
 } from 'lucide-react';
 import { useProjectStore } from '../stores/projectStore';
+import { useAuthStore } from '../stores/authStore';
 import { formatMeasurement } from '../utils/format';
 import MaterialsModal from './MaterialsModal';
-import type { Measurement, Point } from '../types';
+import type { Measurement, Point, ToolPreset, SavedMaterial } from '../types';
 
 export default function TakeoffSidebar() {
   const {
@@ -34,7 +36,9 @@ export default function TakeoffSidebar() {
     setDrawingConfig,
     setContinuingMeasurementName,
     setSubtractingFromSegment,
+    addToolPreset,
   } = useProjectStore();
+  const { user } = useAuthStore();
 
   const [expandedPages, setExpandedPages] = useState<Set<number>>(new Set([1]));
   const [expandedMeasurements, setExpandedMeasurements] = useState<Set<string>>(new Set());
@@ -241,6 +245,38 @@ export default function TakeoffSidebar() {
     setDrawingConfig({ color: measurement.color, lineWeight: measurement.lineWeight || 3 });
     setContinuingMeasurementName(measurement.name);
     setActiveTool(measurement.measurementType);
+  };
+
+  const handleSaveAsPreset = (e: React.MouseEvent, measurement: Measurement) => {
+    e.stopPropagation();
+
+    // Convert measurement materials to saved materials format
+    const presetMaterials: SavedMaterial[] = measurement.materials.map(mat => ({
+      id: crypto.randomUUID(),
+      name: mat.name,
+      hasCoverage: mat.hasCoverage,
+      coverageAmount: mat.coverageAmount,
+      coverageUnit: mat.coverageUnit,
+      wasteFactor: mat.wasteFactor,
+      isStud: mat.isStud,
+      studSpacing: mat.studSpacing,
+      studExtra: mat.studExtra,
+      isPlate: mat.isPlate,
+      plateLength: mat.plateLength,
+      plateCount: mat.plateCount,
+    }));
+
+    const newPreset: ToolPreset = {
+      id: crypto.randomUUID(),
+      name: measurement.name,
+      measurementType: measurement.measurementType,
+      color: measurement.color,
+      materials: presetMaterials,
+      createdAt: new Date().toISOString(),
+    };
+
+    addToolPreset(newPreset, user?.id);
+    alert(`Saved "${measurement.name}" as a tool preset!`);
   };
 
   // Calculate totals
@@ -468,6 +504,13 @@ export default function TakeoffSidebar() {
                               title="Continue measuring with this tool"
                             >
                               <Play className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={(e) => handleSaveAsPreset(e, measurement)}
+                              className="p-1 hover:bg-purple-100 rounded text-purple-500"
+                              title="Save as tool preset"
+                            >
+                              <Bookmark className="w-4 h-4" />
                             </button>
                             <button
                               onClick={(e) => handleToggleVisibility(e, measurement)}
