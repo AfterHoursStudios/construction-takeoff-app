@@ -200,6 +200,7 @@ export default function SavedMaterialsModal({ onClose }: SavedMaterialsModalProp
                       <option value={12}>12" OC</option>
                       <option value={16}>16" OC</option>
                       <option value={24}>24" OC</option>
+                      <option value={32}>32" OC</option>
                     </select>
                   </div>
                   <div className="flex items-center gap-2">

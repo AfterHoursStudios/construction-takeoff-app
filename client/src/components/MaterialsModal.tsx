@@ -28,6 +28,7 @@ const STUD_SPACINGS = [
   { value: 12, label: '12" OC' },
   { value: 16, label: '16" OC' },
   { value: 24, label: '24" OC' },
+  { value: 32, label: '32" OC' },
 ];
 
 const PLATE_LENGTHS = [
